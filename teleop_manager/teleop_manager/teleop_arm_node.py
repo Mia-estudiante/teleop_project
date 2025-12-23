@@ -33,7 +33,7 @@ class TeleopArmNode(Node):
         self.robot = H12Wrapper()
         self.robot2 = H12Wrapper()
 
-        self.publisher = self.create_publisher(JointState, '/mujoco/controller', 10)
+        self.publisher = self.create_publisher(Float64MultiArray, '/mujoco/controller', 10)
         self.subscriber = self.create_subscription(JointState, '/mujoco/joint_states', self.joint_state_callback, 10)
         self.lwrist_subscriber = self.create_subscription(Pose, '/lwrist', self.lwrist_callback, 10)
         self.rwrist_subscriber = self.create_subscription(Pose, '/rwrist', self.rwrist_callback, 10)
@@ -72,25 +72,30 @@ class TeleopArmNode(Node):
 
                         x_err_l = pin.log(l_dMi)
                         x_err_r = pin.log(r_dMi)
-
+                        # print("x_err_l:", x_err_l)
                         # 2. 기본 공식 (Primary Task만 적용)
                         # qdot = J_inv * (Gain * error)
-                        qdot_l = np.linalg.pinv(self.robot.state.left_J) @ (10 * x_err_l)
-                        qdot_r = np.linalg.pinv(self.robot.state.right_J) @ (10 * x_err_r)
+                        qdot_l = np.linalg.pinv(self.robot.state.l_J) @ (10 * x_err_l)
+                        qdot_r = np.linalg.pinv(self.robot.state.r_J) @ (10 * x_err_r)
 
                         # 3. 적분하여 명령 생성
+                        # print("l_qdes:", self.l_qdes)
+                        # print("qdot_l:", qdot_l)
                         self.l_qdes += qdot_l * 0.01
                         self.r_qdes += qdot_r * 0.01
 
                 qdes = np.append(self.l_qdes, self.r_qdes)
+                print("Desired joint positions:", qdes)
         self.arm_publish(qdes)
 
     '''
     Mujoco JointState: 현재 robot state 정보를 받아서 H12Wrapper의 state에 반영
     '''
-    def arm_publish(self, qdes):
-        arm_msg = JointState()
-        arm_msg.position = self.robot.state.q.tolist()
+    def arm_publish(self, qdes=None):
+        arm_msg = Float64MultiArray()
+        arm_msg.data = qdes.tolist()
+        # arm_msg.data = self.robot.state.q.tolist()
+        # print("Publishing desired joint positions:", arm_msg.data)
         self.publisher.publish(arm_msg)
 
     def joint_state_callback(self, msg: JointState):

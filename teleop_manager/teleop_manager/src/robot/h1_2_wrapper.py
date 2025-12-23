@@ -134,8 +134,8 @@ class H12Wrapper(RobotWrapper):
     def computeAllTerms(self):
         pin.computeAllTerms(self.model, self.data, self.state.q, self.state.v)
 
-        self.state.l_J = self.getJointJacobian(self.index(self.l_eef))
-        self.state.r_J = self.getJointJacobian(self.index(self.r_eef))
+        self.state.l_J = self.getJointJacobian(self.index(self.l_eef))[:,:int(self.state.nq/2)]
+        self.state.r_J = self.getJointJacobian(self.index(self.r_eef))[:,int(self.state.nq/2):]
 
         self.state.l_oMi = self.data.oMi[self.index(self.l_eef)]
         self.state.r_oMi = self.data.oMi[self.index(self.r_eef)]
