@@ -12,6 +12,8 @@ import mujoco.viewer
 
 import numpy as np
 
+import pinocchio as pin
+
 from ament_index_python.packages import get_package_share_directory
 
 class MujocoSimulationNode(Node):
@@ -30,6 +32,27 @@ class MujocoSimulationNode(Node):
             return
         self.data = mujoco.MjData(self.model)
         print(f"data qpos: {self.data.qpos}")
+
+
+        target_matrix = np.array([
+            [0.2574319839477539, 0.21228036284446716, -0.942690908908844, 0.50247097909450531],
+            # [0.2574319839477539, 0.21228036284446716, -0.942690908908844, -0.10247097909450531],
+            [0.953957736492157, -0.21123751997947693, 0.21294112503528595, 0.2820121645927429],
+            [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 1],
+            # [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 0.8473547697067261],
+            [0.0, 0.0, 0.0, 1.0]
+        ])
+
+        # 2. Pinocchio SE3 객체 생성
+        # 왼쪽 3x3은 rotation, 마지막 열의 3개는 translation으로 자동 분리됨
+        self.l_goal = pin.SE3(target_matrix)
+
+
+        # MuJoCo 데이터 객체(self.data)를 통해 위치 업데이트
+        # 0번 mocap body가 visual_target이라고 가정
+        self.data.mocap_pos[0] = self.l_goal.translation
+        self.data.mocap_quat[0] = pin.Quaternion(self.l_goal.rotation).coeffs() # 회전도 일치시킴
+
 
         self.publisher = self.create_publisher(JointState, '/mujoco/joint_states', 10)
         self.subscriber = self.create_subscription(Float64MultiArray, '/mujoco/controller', self.joint_state_callback, 10)
