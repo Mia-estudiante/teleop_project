@@ -3,6 +3,7 @@ import os
 import rclpy
 from rclpy.node import Node
 
+from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
 
 # MuJoCo
@@ -31,7 +32,7 @@ class MujocoSimulationNode(Node):
         print(f"data qpos: {self.data.qpos}")
 
         self.publisher = self.create_publisher(JointState, '/mujoco/joint_states', 10)
-        self.subscriber = self.create_subscription(JointState, '/mujoco/controller', self.joint_state_callback, 10)
+        self.subscriber = self.create_subscription(Float64MultiArray, '/mujoco/controller', self.joint_state_callback, 10)
         self.timer = self.create_timer(0.01, self.timer_callback)
 
         # Print initial joint information
@@ -57,10 +58,10 @@ class MujocoSimulationNode(Node):
         joint_msg.position = left_qpos + right_qpos
         joint_msg.velocity = left_qvel + right_qvel
         self.publisher.publish(joint_msg)
-        
-    def joint_state_callback(self, msg):
-        for i in range(len(msg.position)):
-            self.ctrl[i] = msg.position[i]
+
+    def joint_state_callback(self, msg: Float64MultiArray):
+        for i in range(len(msg.data)):
+            self.ctrl[i] = msg.data[i]
         self.ctrlFlag = True
         self.get_logger().info(f'Received joint state: {msg}')
 
@@ -88,7 +89,7 @@ class MujocoSimulationNode(Node):
             self.init = False
             # self.joint_state_callback_test()
         if self.ctrlFlag: # teleop_manager 를 통해서 joinstate 를 받을 예정
-            print("Applying control:", self.ctrl)
+            # print("Applying control:", self.ctrl)
             self.data.qpos[7:14] = self.ctrl[:7]
             self.data.qpos[14:21] = self.ctrl[7:]
             mujoco.mj_forward(self.model, self.data)
