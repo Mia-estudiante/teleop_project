@@ -38,8 +38,8 @@ class UserNode(Node):
         pkg = get_package_share_directory('user_manager')
         user_data_path = os.path.join(pkg, 'data')
 
-        self.lwrist_path = os.path.join(user_data_path, 'left_wrist.json')
-        self.rwrist_path = os.path.join(user_data_path, 'right_wrist.json')
+        self.lwrist_path = os.path.join(user_data_path, 'test_lwrist.json')
+        self.rwrist_path = os.path.join(user_data_path, 'test_rwrist.json')
         # self.lfingers_path = os.path.join(user_data_path, 'left_fingers.json')
         # self.rfingers_path = os.path.join(user_data_path, 'right_fingers.json')
 
