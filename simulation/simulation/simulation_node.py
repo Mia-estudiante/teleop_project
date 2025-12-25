@@ -34,14 +34,36 @@ class MujocoSimulationNode(Node):
         print(f"data qpos: {self.data.qpos}")
 
 
-        target_matrix = np.array([
-            [0.2574319839477539, 0.21228036284446716, -0.942690908908844, 0.50247097909450531],
-            # [0.2574319839477539, 0.21228036284446716, -0.942690908908844, -0.10247097909450531],
-            [0.953957736492157, -0.21123751997947693, 0.21294112503528595, 0.2820121645927429],
-            [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 1],
-            # [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 0.8473547697067261],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
+        # target_matrix = np.array([
+        #     [0.2574319839477539, 0.21228036284446716, -0.942690908908844, 0.50247097909450531],
+        #     # [0.2574319839477539, 0.21228036284446716, -0.942690908908844, -0.10247097909450531],
+        #     [0.953957736492157, -0.21123751997947693, 0.21294112503528595, 0.2820121645927429],
+        #     [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 1],
+        #     # [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 0.8473547697067261],
+        #     [0.0, 0.0, 0.0, 1.0]
+        # ])
+  
+        # world 기준 target 위치
+        target_matrix = np.array([[1,0,0,0.432],
+                                [0,1,0,0.2095],
+                                [0,0,1,1.1549799],
+                                [0,0,0,1]])
+        # eef 기준 target 위치
+        # target_matrix = np.array([[1,0,0,0.432],
+        #                         [0,1,0,0.2095],
+        #                         [0,0,1,0.1249799],
+        #                         [0,0,0,1]])
+        
+        # world 기준 l_omi 위치
+        # target_matrix = np.array([[1,0,0,0.232],
+        #                     [0,1,0,0.2095],
+        #                     [0,0,1,0.0949799+1.03],
+        #                     [0,0,0,1]])    
+        
+        # target_matrix = np.array([[1,0,0,0.2],
+        #                     [0,1,0,0.2095],
+        #                     [0,0,1,3.71999e-07],
+        #                     [0,0,0,1.06]])   
 
         # 2. Pinocchio SE3 객체 생성
         # 왼쪽 3x3은 rotation, 마지막 열의 3개는 translation으로 자동 분리됨
@@ -70,6 +92,8 @@ class MujocoSimulationNode(Node):
         
         self.init = True
         self.ctrlFlag = False
+
+        self.step = 0
 
     def joint_state_publish(self, qpos, qvel):
         joint_msg = JointState()
@@ -113,8 +137,17 @@ class MujocoSimulationNode(Node):
             # self.joint_state_callback_test()
         if self.ctrlFlag: # teleop_manager 를 통해서 joinstate 를 받을 예정
             # print("Applying control:", self.ctrl)
-            self.data.qpos[7:14] = self.ctrl[:7]
-            self.data.qpos[14:21] = self.ctrl[7:]
+            # if self.step ==0:
+            #     self.data.qpos[7:14] = np.array([-0.00445157, 0.00026862,0.00076013,-0.04703118,-0.00026862,0.05133107, 0.00039203])
+            #     self.data.qpos[14:21] = np.zeros(7)  # 오른손 고정
+            #     self.step +=1
+
+            # else:
+            #     self.data.qpos[7:14] = np.zeros(7)
+            #     self.data.qpos[14:21] = np.zeros(7)
+            self.data.qpos[7:14] = self.ctrl[:7]  # 왼손
+            self.data.qpos[14:21] = self.ctrl[7:14]  # 오른손 고정
+
             mujoco.mj_forward(self.model, self.data)
 
     '''
