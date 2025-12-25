@@ -82,6 +82,7 @@ class UserNode(Node):
             wrist_msg.orientation.y = xyzquat[4]
             wrist_msg.orientation.z = xyzquat[5]
             wrist_msg.orientation.w = xyzquat[6]
+            self.get_logger().info(f'lwrist_msg: {wrist_msg}')
             self.lwrist_publisher.publish(wrist_msg)
 
     def rwrist_publish(self, frames):
@@ -95,6 +96,7 @@ class UserNode(Node):
             wrist_msg.orientation.y = xyzquat[4]
             wrist_msg.orientation.z = xyzquat[5]
             wrist_msg.orientation.w = xyzquat[6]
+            self.get_logger().info(f'rwrist_msg: {wrist_msg}')
             self.rwrist_publisher.publish(wrist_msg)
 
 def main():
