@@ -31,10 +31,11 @@ class state():
         self.nv: np.array
         # self.na: np.array
 
-        # self.id: np.array
         # self.G: np.array
         self.l_J: np.array
         self.r_J: np.array
+        
+        self.head_oMi: pin.SE3
         self.l_oMi: pin.SE3
         self.r_oMi: pin.SE3
 
@@ -105,19 +106,13 @@ class H12Wrapper(RobotWrapper):
 
         # 모든 값이 0이 아닌, Pinocchio가 권장하는 기본 자세(Quaternion 1 포함)를 가져옵니다.
         q_neutral = pin.neutral(self.__robot.model)
-        # self.logger.info(f'Robot neutral configuration: {q_neutral}')
-        # self.logger.info(f'{np.array([0.0] * self.__robot.model.nq)}')
+        self.logger.info(f'Robot neutral configuration: {q_neutral}')
 
         # 이 값을 reference_configuration에 전달합니다.
         self.robot_reduced = self.__robot.buildReducedRobot(
             list_of_joints_to_lock=self.joint2lock,
-            reference_configuration=q_neutral,
+            reference_configuration=q_neutral, # np.array([0.0] * self.__robot.model.nq)
         )
-
-        # self.robot_reduced = self.__robot.buildReducedRobot(
-        #     list_of_joints_to_lock=self.joint2lock,
-        #     reference_configuration=np.array([0.0] * self.__robot.model.nq),
-        # )
         
         self.model = self.robot_reduced.model
         self.data, self.__collision_data, self.__visual_data = \
@@ -131,15 +126,31 @@ class H12Wrapper(RobotWrapper):
         self.state.l_oMi = pin.SE3()
         self.state.r_oMi = pin.SE3()
 
+        '''
+        # 1. 중립 포즈(Neutral Configuration) 확인
+        # 보통 모든 관절이 0인 상태를 반환합니다.
+        # q_neutral = self.model.neutralConfiguration
+        # print("Neutral Configuration:", q_neutral)
+
+        # 2. 특정 관절의 초기 회전(Transform) 확인
+        # Joint ID 1번의 부모 대비 초기 위치/회전을 알고 싶을 때
+        l_joint_id = self.model.getJointId("left_wrist_yaw_joint")
+        l_initial_placement = self.model.jointPlacements[l_joint_id]
+        r_joint_id = self.model.getJointId("right_wrist_yaw_joint")
+        r_initial_placement = self.model.jointPlacements[r_joint_id]
+        
+        # 전체 관절 이름과 부모 ID를 리스트로 출력
+        for i, (name, parent) in enumerate(zip(self.model.names, self.model.parents)):
+            print(f"ID: {i:2} | Joint: {name:20} | Parent ID: {parent}")
+        '''
+
     def computeAllTerms(self):
         pin.computeAllTerms(self.model, self.data, self.state.q, self.state.v)
 
         self.state.l_J = self.getJointJacobian(self.index(self.l_eef), pin.LOCAL)[:,:int(self.state.nq/2)]
         self.state.r_J = self.getJointJacobian(self.index(self.r_eef), pin.LOCAL)[:,int(self.state.nq/2):]
 
-        self.state.l_oMi = self.data.oMi[self.index(self.l_eef)]
-        self.state.r_oMi = self.data.oMi[self.index(self.r_eef)]
-
-
-# if __name__ == "__main__":
-#     robot = H12Wrapper()
+        self.state.l_oMi = self.data.oMi[self.index(self.l_eef)] # pelvis 기준 - pelvisMlwrist
+        self.state.r_oMi = self.data.oMi[self.index(self.r_eef)] # pelvis 기준 - pelvisMrwrist
+        self.state.head_oMi = pin.SE3(np.eye(3), np.array([0, 0, 0.5])) # pelvis 기준(fixed) - pelvisMhead
+        # self.state.Mi = pin.SE3(np.eye(3), np.array([0, 0, 1.03])) # world 기준(fixed) - oMpelvis
