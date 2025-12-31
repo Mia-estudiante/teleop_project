@@ -24,7 +24,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'user_node = user_manager.user_node:main'
+            'user_data_node = user_manager.user_data_node:main',
+            'avp_node = user_manager.avp_node:main'
         ],
     },
 )

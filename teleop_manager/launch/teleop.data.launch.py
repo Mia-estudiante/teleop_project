@@ -11,14 +11,14 @@ def generate_launch_description():
         ),
         Node(
             package='teleop_manager',
-            executable='teleop_arm_node',
-            name='teleop_arm',
+            executable='teleop_arm_data_node',
+            name='teleop_arm_data',
             output='screen'
         ),
         Node(
             package='user_manager',
-            executable='user_node',
-            name='user',
+            executable='user_data_node',
+            name='user_data',
             output='screen'
         )
     ])
