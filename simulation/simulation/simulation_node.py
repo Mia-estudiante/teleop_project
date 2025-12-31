@@ -12,8 +12,6 @@ import mujoco.viewer
 
 import numpy as np
 
-import pinocchio as pin
-
 from ament_index_python.packages import get_package_share_directory
 
 class MujocoSimulationNode(Node):
@@ -31,28 +29,13 @@ class MujocoSimulationNode(Node):
             self.get_logger().error(f'Failed to load the model from {h12_xml_path}')
             return
         self.data = mujoco.MjData(self.model)
-        print(f"data qpos: {self.data.qpos}")
 
-
-        target_matrix = np.array([
-            [0.2574319839477539, 0.21228036284446716, -0.942690908908844, 0.50247097909450531],
-            # [0.2574319839477539, 0.21228036284446716, -0.942690908908844, -0.10247097909450531],
-            [0.953957736492157, -0.21123751997947693, 0.21294112503528595, 0.2820121645927429],
-            [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 1],
-            # [-0.15392844378948212, -0.9541048407554626, -0.25688570737838745, 0.8473547697067261],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
-
-        # 2. Pinocchio SE3 객체 생성
-        # 왼쪽 3x3은 rotation, 마지막 열의 3개는 translation으로 자동 분리됨
-        self.l_goal = pin.SE3(target_matrix)
-
-
-        # MuJoCo 데이터 객체(self.data)를 통해 위치 업데이트
-        # 0번 mocap body가 visual_target이라고 가정
-        self.data.mocap_pos[0] = self.l_goal.translation
-        self.data.mocap_quat[0] = pin.Quaternion(self.l_goal.rotation).coeffs() # 회전도 일치시킴
-
+        '''
+        # 1. 모델에 정의된 '기본(Reference)' 포즈 확인
+        print("Default qpos:", self.model.qpos0)
+        # 2. 현재 데이터의 관절 위치 (초기화 직후)
+        print("Initial qpos:", self.data.qpos)
+        '''
 
         self.publisher = self.create_publisher(JointState, '/mujoco/joint_states', 10)
         self.subscriber = self.create_subscription(Float64MultiArray, '/mujoco/controller', self.joint_state_callback, 10)
@@ -86,15 +69,6 @@ class MujocoSimulationNode(Node):
         for i in range(len(msg.data)):
             self.ctrl[i] = msg.data[i]
         self.ctrlFlag = True
-        self.get_logger().info(f'Received joint state: {msg}')
-
-    '''
-    def joint_state_callback_test(self):
-        self.ctrlFlag = True
-        self.ctrl[:7] = np.array([0,0,1.03, 0,0,0,1])
-        # self.ctrl[7:] = self.ctrl.copy()
-        # self.ctrl = np.array(msg.position)
-    '''
 
     '''
     robot init 값: 
@@ -108,33 +82,11 @@ class MujocoSimulationNode(Node):
             # self.data.qpos[:7] = np.array([0,0,1.03, 0,0,0,1]) # first 7 : floating joint
             # self.data.qpos[7:14] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Left hand initial positions
             # self.data.qpos[14:21] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Right hand initial positions
-            print(self.data.qpos)
             self.init = False
-            # self.joint_state_callback_test()
         if self.ctrlFlag: # teleop_manager 를 통해서 joinstate 를 받을 예정
-            # print("Applying control:", self.ctrl)
             self.data.qpos[7:14] = self.ctrl[:7]
             self.data.qpos[14:21] = self.ctrl[7:]
             mujoco.mj_forward(self.model, self.data)
-
-    '''
-    def run(self):
-        self.joint_state_publish(self.data.qpos, self.data.qvel)
-
-        with mujoco.viewer.launch_passive(self.model, self.data) as viewer:   
-            while rclpy.ok() and viewer.is_running():
-                # Step the physics
-                mujoco.mj_step(self.model, self.data)
-                # viewer.render()
-
-            # joint_msg = JointState()
-            # joint_msg.header.stamp = self.get_clock().now().to_msg()
-            # joint_msg.position = self.data.qpos[:self.model.njnt].tolist()
-            # joint_msg.velocity = self.data.qvel[:self.model.njnt].tolist()
-            # self.publisher.publish(joint_msg)
-                # rclpy.spin_once(self, timeout_sec=0.0)
-                # viewer.sync()
-    '''
 
     def main(self):
         with mujoco.viewer.launch_passive(self.model, self.data) as viewer:
@@ -145,7 +97,6 @@ class MujocoSimulationNode(Node):
 def main():
     rclpy.init()
     node = MujocoSimulationNode()
-    # rclpy.spin(node)
     node.main()
     node.destroy_node()
     rclpy.shutdown()
