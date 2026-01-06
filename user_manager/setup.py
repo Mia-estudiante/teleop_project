@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             'user_data_node = user_manager.user_data_node:main',
-            'avp_node = user_manager.avp_node:main'
+            'avp_node = user_manager.avp_node:main',
+            'test_node = user_manager.test_image:main'
         ],
     },
 )

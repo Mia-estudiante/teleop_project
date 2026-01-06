@@ -4,15 +4,18 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import Float64MultiArray
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Image
 
 # MuJoCo
 import mujoco
 import mujoco.viewer
 
 import numpy as np
+from cv_bridge import CvBridge
 
 from ament_index_python.packages import get_package_share_directory
+
+bridge = CvBridge()
 
 class MujocoSimulationNode(Node):
     def __init__(self):
@@ -29,6 +32,7 @@ class MujocoSimulationNode(Node):
             self.get_logger().error(f'Failed to load the model from {h12_xml_path}')
             return
         self.data = mujoco.MjData(self.model)
+        self.renderer = mujoco.Renderer(self.model, height=480, width=640)
 
         '''
         # 1. 모델에 정의된 '기본(Reference)' 포즈 확인
@@ -38,6 +42,7 @@ class MujocoSimulationNode(Node):
         '''
 
         self.publisher = self.create_publisher(JointState, '/mujoco/joint_states', 10)
+        self.camera_publisher = self.create_publisher(Image, '/mujoco/camera', 10)
         self.subscriber = self.create_subscription(Float64MultiArray, '/mujoco/controller', self.joint_state_callback, 10)
         self.timer = self.create_timer(0.01, self.timer_callback)
 
@@ -53,7 +58,7 @@ class MujocoSimulationNode(Node):
         
         self.init = True
         self.ctrlFlag = False
-
+    
     def joint_state_publish(self, qpos, qvel):
         joint_msg = JointState()
         left_qpos = qpos[7:14].tolist()
@@ -64,6 +69,14 @@ class MujocoSimulationNode(Node):
         joint_msg.position = left_qpos + right_qpos
         joint_msg.velocity = left_qvel + right_qvel
         self.publisher.publish(joint_msg)
+
+    def camera_publish(self, camera_name='eef_camera'):
+        # 해당 카메라의 뷰로 씬 업데이트
+        self.renderer.update_scene(self.data, camera=camera_name)
+        # RGB 이미지 렌더링 (numpy array 반환)
+        pixels = self.renderer.render()
+        # 여기서 ROS나 다른 통신 프로토콜로 frame을 publish 합니다.
+        self.camera_publisher.publish(bridge.cv2_to_imgmsg(pixels))
 
     def joint_state_callback(self, msg: Float64MultiArray):
         for i in range(len(msg.data)):
@@ -76,6 +89,7 @@ class MujocoSimulationNode(Node):
      0.   0.   0.   0.   0.   0.   0.  ]
     '''
     def timer_callback(self):
+        self.camera_publish()
         self.joint_state_publish(self.data.qpos, self.data.qvel)
         if self.init:
             # self.data.qpos = np.zeros((21))
