@@ -76,32 +76,32 @@ class H12Wrapper(RobotWrapper):
                             "torso_joint",
 
                             # 왼쪽 손가락 (Left Fingers/Thumb)
-                            "L_thumb_proximal_yaw_joint",
-                            "L_thumb_proximal_pitch_joint",
-                            "L_thumb_intermediate_joint",
-                            "L_thumb_distal_joint",
-                            "L_index_proximal_joint",
-                            "L_index_intermediate_joint",
-                            "L_middle_proximal_joint",
-                            "L_middle_intermediate_joint",
-                            "L_ring_proximal_joint",
-                            "L_ring_intermediate_joint",
-                            "L_pinky_proximal_joint",
-                            "L_pinky_intermediate_joint",
+                            # "L_thumb_proximal_yaw_joint",
+                            # "L_thumb_proximal_pitch_joint",
+                            # "L_thumb_intermediate_joint",
+                            # "L_thumb_distal_joint",
+                            # "L_index_proximal_joint",
+                            # "L_index_intermediate_joint",
+                            # "L_middle_proximal_joint",
+                            # "L_middle_intermediate_joint",
+                            # "L_ring_proximal_joint",
+                            # "L_ring_intermediate_joint",
+                            # "L_pinky_proximal_joint",
+                            # "L_pinky_intermediate_joint",
 
                             # 오른쪽 손가락 (Right Fingers/Thumb)
-                            "R_thumb_proximal_yaw_joint",
-                            "R_thumb_proximal_pitch_joint",
-                            "R_thumb_intermediate_joint",
-                            "R_thumb_distal_joint",
-                            "R_index_proximal_joint",
-                            "R_index_intermediate_joint",
-                            "R_middle_proximal_joint",
-                            "R_middle_intermediate_joint",
-                            "R_ring_proximal_joint",
-                            "R_ring_intermediate_joint",
-                            "R_pinky_proximal_joint",
-                            "R_pinky_intermediate_joint"
+                            # "R_thumb_proximal_yaw_joint",
+                            # "R_thumb_proximal_pitch_joint",
+                            # "R_thumb_intermediate_joint",
+                            # "R_thumb_distal_joint",
+                            # "R_index_proximal_joint",
+                            # "R_index_intermediate_joint",
+                            # "R_middle_proximal_joint",
+                            # "R_middle_intermediate_joint",
+                            # "R_ring_proximal_joint",
+                            # "R_ring_intermediate_joint",
+                            # "R_pinky_proximal_joint",
+                            # "R_pinky_intermediate_joint"
                         ]
 
         # 모든 값이 0이 아닌, Pinocchio가 권장하는 기본 자세(Quaternion 1 포함)를 가져옵니다.
@@ -115,6 +115,10 @@ class H12Wrapper(RobotWrapper):
         )
         
         self.model = self.robot_reduced.model
+
+        self.l_frameid = self.model.getFrameId(self.l_eef)
+        self.r_frameid = self.model.getFrameId(self.r_eef)
+
         self.data, self.__collision_data, self.__visual_data = \
             pin.createDatas(self.robot_reduced.model, self.robot_reduced.collision_model, self.robot_reduced.visual_model)
 
@@ -139,10 +143,12 @@ class H12Wrapper(RobotWrapper):
         r_joint_id = self.model.getJointId("right_wrist_yaw_joint")
         r_initial_placement = self.model.jointPlacements[r_joint_id]
         
-        # 전체 관절 이름과 부모 ID를 리스트로 출력
-        for i, (name, parent) in enumerate(zip(self.model.names, self.model.parents)):
-            print(f"ID: {i:2} | Joint: {name:20} | Parent ID: {parent}")
         '''
+
+        self.joint_names = [self.model.names[i] for i in range(self.model.njoints) if self.model.names[i] not in self.joint2lock]
+        # # 전체 관절 이름과 부모 ID를 리스트로 출력
+        # for i, (name, parent) in enumerate(zip(self.model.names, self.model.parents)):
+        #     print(f"ID: {i:2} | Joint: {name:20} | Parent ID: {parent}")
 
     def computeAllTerms(self):
         pin.computeAllTerms(self.model, self.data, self.state.q, self.state.v)

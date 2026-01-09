@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'user_data_node = user_manager.user_data_node:main',
+            'avp_hand_node = user_manager.avp_hand_node:main',
             'avp_node = user_manager.avp_node:main',
         ],
     },

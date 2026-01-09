@@ -10,6 +10,11 @@ install(
 )
 
 install(
+  FILES scene_.xml
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(
   FILES h1_2.urdf
   DESTINATION share/${PROJECT_NAME}
 )
@@ -20,7 +25,17 @@ install(
 )
 
 install(
+  FILES h1_2_.xml
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(
   DIRECTORY meshes
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY inspire_hand
   DESTINATION share/${PROJECT_NAME}
 )
 
