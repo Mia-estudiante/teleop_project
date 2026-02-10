@@ -1,5 +1,3 @@
-import os
-
 import rclpy
 from rclpy.node import Node
 
@@ -15,6 +13,7 @@ import numpy as np
 
 from teleop_manager.src.robot.h1_2_wrapper import H12Wrapper
 from teleop_manager.src.dex_retargeting.DexRetargeting import DexRetargeting
+from simulation.simulation_hand_node import MujocoSimulationHandNode
 
 THRES = 3e-4
 
@@ -26,19 +25,23 @@ class TeleopArmHandNode(Node):
         # self.head_goal = pin.SE3()
         self.l_goal = pin.SE3()
         self.r_goal = pin.SE3()
-        self.lfingers_goal = np.zeros(12)
-        self.rfingers_goal = np.zeros(12)
-        self.lfingers_qdes = np.zeros(12)
-        self.rfingers_qdes = np.zeros(12)
+        self.lfingers_goal = []
+        self.rfingers_goal = []
+        self.lfingers_qdes = np.zeros(6)
+        self.rfingers_qdes = np.zeros(6)
+        self.init_qdes = np.zeros(38)
 
         self.robot = H12Wrapper()
         self.dexretargeting = DexRetargeting()
-        self.left_retargeting_to_mjc = np.array([self.robot.joint_names.index('L_'+name) for name in self.dexretargeting.left_retargeting_joint_names if 'L_'+name in self.robot.joint_names]).astype(int)
-        self.right_retargeting_to_mjc = np.array([self.robot.joint_names.index('R_'+name) for name in self.dexretargeting.right_retargeting_joint_names if 'R_'+name in self.robot.joint_names]).astype(int)
+
+        self.left_retargeting_to_mjc = MujocoSimulationHandNode().left_retargeting_to_mjc
+        self.right_retargeting_to_mjc = MujocoSimulationHandNode().right_retargeting_to_mjc
+
+        # self.mujoco_qpos = []
 
         self.publisher = self.create_publisher(Float64MultiArray, '/mujoco/controller', 10)
         self.subscriber = self.create_subscription(JointState, '/mujoco/joint_states', self.joint_state_callback, 10)
-        # self.head_subscriber = self.create_subscription(Pose, '/head', self.head_callback, 10)
+        self.head_subscriber = self.create_subscription(Pose, '/head', self.head_callback, 10)
         self.lwrist_subscriber = self.create_subscription(Pose, '/lwrist', self.lwrist_callback, 10)
         self.rwrist_subscriber = self.create_subscription(Pose, '/rwrist', self.rwrist_callback, 10)
         self.lfingers_subscriber = self.create_subscription(PoseArray, '/lfingers', self.lfingers_callback, 10)
@@ -49,65 +52,85 @@ class TeleopArmHandNode(Node):
         self.ctrlFlag = False           
         self.initCtrlFlag = True        # teleop 시작 전 초기화 플래그
         self.initCtrlFlag2 = True       # teleop 시작 전 초기화 플래그
+        ############
+        self.head_ctrlFlag = False    
         self.lwrist_ctrlFlag = False    
         self.rwrist_ctrlFlag = False     
         self.lfingers_ctrlFlag = False     
         self.rfingers_ctrlFlag = False
-        # self.head_ctrlFlag = False
+        ############
 
+        self.lwrist_rot_diff = np.array([[1,0,0],[0,0,1],[0,-1,0]]).T
+        self.rwrist_rot_diff = np.array([[1,0,0],[0,0,-1],[0,1,0]]).T
+        self.lfingers_rot_diff_se3 = pin.SE3(self.lwrist_rot_diff, np.zeros(3))
+        self.rfingers_rot_diff_se3 = pin.SE3(self.rwrist_rot_diff, np.zeros(3))
+        
     def timer_callback(self):
-        qdes = np.zeros(38)
+        qdes = np.zeros(26)
         if self.ctrlFlag:
             if self.initCtrlFlag:
                 self.get_logger().info(f"Initializing...")
-                self.get_logger().info(f"Initializing Done. Moving to teleoperation...")
+                # if np.linalg.norm(self.robot.state.q - self.init_qdes) < THRES:
+                #     qdes = self.init_qdes.copy()
                 self.initCtrlFlag = False
+                self.get_logger().info(f"Initializing Done. Moving to teleoperation...")
             else:
-                if self.lwrist_ctrlFlag and self.rwrist_ctrlFlag and self.lfingers_ctrlFlag and self.rfingers_ctrlFlag:
+                if self.head_ctrlFlag and self.lwrist_ctrlFlag and self.rwrist_ctrlFlag and self.lfingers_ctrlFlag and self.rfingers_ctrlFlag:
                     if self.initCtrlFlag2:
-                        self.lfingers_qdes = self.robot.state.q[14:26].copy()
-                        self.rfingers_qdes = self.robot.state.q[33:45].copy()
+                        # self.l_qdes = self.robot.state.q[:7].copy()
+                        # self.r_qdes = self.robot.state.q[19:26].copy()
                         self.initCtrlFlag2 = False
                     else:
-                        self.lfingers_qdes = self.dexretargeting.retarget(self.dexretargeting.left_retargeting, self.dexretargeting.left_indices, self.lfingers_goal)
-                        self.rfingers_qdes = self.dexretargeting.retarget(self.dexretargeting.right_retargeting, self.dexretargeting.right_indices, self.rfingers_goal)
-                        # print("self.lfingers_qdes", self.lfingers_qdes.shape)
-                        # print("self.rfingers_qdes", self.rfingers_qdes.shape)
+                        '''
+                        # ROBOT
+                        headMlwrist = self.robot.state.head_oMi.inverse() * self.robot.state.l_oMi
+                        headMrwrist = self.robot.state.head_oMi.inverse() * self.robot.state.r_oMi
+                        
+                        # USER
+                        headMl_target =  self.head_goal.inverse() * self.l_goal
+                        headMr_target =  self.head_goal.inverse() * self.r_goal
+                        
+                        # 1. 포즈 오차 계산 (목표와 현재의 차이)
+                        l_dMi = headMlwrist.inverse() * headMl_target
+                        r_dMi = headMrwrist.inverse() * headMr_target
 
-                    # # Left Hand Retargeting
-                    # left_joint_pos = self.robot.state.q[self.left_retargeting_to_mjc]
-                    # left_qpos = self.dexretargeting.left_retargeting.retarget(left_joint_pos)
-                    # # Right Hand Retargeting
-                    # right_joint_pos = self.robot.state.q[self.right_retargeting_to_mjc]
-                    # right_qpos = self.dexretargeting.right_retargeting.retarget(right_joint_pos)
+                        x_err_l = pin.log(l_dMi).vector
+                        x_err_r = pin.log(r_dMi).vector
 
-                    # # Combine Left and Right Hand qdes
-                    # for i, idx in enumerate(self.left_retargeting_to_mjc):
-                    #     qdes[idx] = left_qpos[i]
-                    # for i, idx in enumerate(self.right_retargeting_to_mjc):
-                    #     qdes[idx] = right_qpos[i]
-        qdes[:7] = 0 # left wrist
-        qdes[7:19] = self.lfingers_qdes # left fingers
-        qdes[19:26] = 0 # right wrist
-        # print("qdes[26:]", qdes[26:])
-        # 수정 전: qdes[26:] = self.rfingers_qdes
+                        # 2. 기본 공식 (Primary Task만 적용)
+                        # qdot = J_inv * (Gain * error)
+                        l_qdot = np.linalg.pinv(self.robot.state.l_J) @ (1.5 * x_err_l)
+                        r_qdot = np.linalg.pinv(self.robot.state.r_J) @ (1.5 * x_err_r)
 
-        # 수정 후: 데이터 개수가 맞을 때만 할당하도록 변경
-        if len(self.rfingers_qdes) == 12:
-            qdes[26:] = self.rfingers_qdes
-        else:
-            self.get_logger().warn(
-                f"데이터 크기 불일치! 예상: 12, 실제: {len(self.rfingers_qdes)}. "
-                f"데이터 내용: {self.rfingers_qdes}"
-            )        # print(qdes.shape)
-        print("self.rfingers_qdes", self.rfingers_qdes)
-        print("qdes[26:]", qdes[26:])
+                        # 3. 적분하여 명령 생성
+                        self.l_qdes += l_qdot * 0.01
+                        self.r_qdes += r_qdot * 0.01
+                        '''
 
-        # print(qdes)
-        # qdes[7:14] = 0 # left wrist
-        # qdes[14:26] = self.lfingers_qdes # left fingers
-        # qdes[26:33] = 0 # right wrist
-        # qdes[33:45] = self.rfingers_qdes # right fingers
+                        l_wristMl_fingers = []
+                        r_wristMl_fingers = []
+                        
+                        for lfinger in self.lfingers_goal:
+                            lwristMfingers = (self.l_goal).inverse() * lfinger
+                            l_wristMl_fingers.append(lwristMfingers.translation.tolist())
+                        for rfinger in self.rfingers_goal:
+                            rwristMfingers = (self.r_goal).inverse() * rfinger
+                            r_wristMl_fingers.append(rwristMfingers.translation.tolist())
+
+                        self.lfingers_qdes = self.dexretargeting.retarget_ref(
+                            self.dexretargeting.left_retargeting, 
+                            np.array(l_wristMl_fingers)
+                        )[self.dexretargeting.left_retargeting_index]
+
+                        self.rfingers_qdes = self.dexretargeting.retarget_ref(
+                            self.dexretargeting.right_retargeting, 
+                            np.array(r_wristMl_fingers)
+                        )[self.dexretargeting.right_retargeting_index]
+
+        qdes[:7] = 0#self.l_qdes # left wrist
+        qdes[7:13] = self.lfingers_qdes # left fingers
+        qdes[13:20] = 0 #self.r_qdes # right wrist
+        qdes[20:] = self.rfingers_qdes # right fingers
         self.hand_publish(qdes)
 
     '''
@@ -124,10 +147,10 @@ class TeleopArmHandNode(Node):
         self.robot.computeAllTerms()
         self.ctrlFlag = True
 
-    # def head_callback(self, msg: Pose):
-    #     pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
-    #     self.head_goal = pin.XYZQUATToSE3(pos)
-    #     self.head_ctrlFlag = True
+    def head_callback(self, msg: Pose):
+        pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.head_goal = pin.XYZQUATToSE3(pos)
+        self.head_ctrlFlag = True
 
     def lwrist_callback(self, msg: Pose):
         pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
@@ -142,21 +165,17 @@ class TeleopArmHandNode(Node):
     def lfingers_callback(self, msg: PoseArray):
         lfingers_goal = []
         for i in range(len(msg.poses)):
-            lfingers_goal.append([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z])
-            # pos_list.append([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z, msg.poses[i].orientation.x, msg.poses[i].orientation.y, msg.poses[i].orientation.z, msg.poses[i].orientation.w])
-        self.lfingers_goal = np.array(lfingers_goal)
-        # print("lfingers_callback pos_list:", pos_list)
-        # self.l_goal = pin.XYZQUATToSE3(pos)
+            pos = np.array([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z, msg.poses[i].orientation.x, msg.poses[i].orientation.y, msg.poses[i].orientation.z, msg.poses[i].orientation.w])
+            lfingers_goal.append(pin.XYZQUATToSE3(pos))
+        self.lfingers_goal = lfingers_goal
         self.lfingers_ctrlFlag = True
 
     def rfingers_callback(self, msg: PoseArray):
         rfingers_goal = []
         for i in range(len(msg.poses)):
-            rfingers_goal.append([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z])
-            # pos_list.append([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z, msg.poses[i].orientation.x, msg.poses[i].orientation.y, msg.poses[i].orientation.z, msg.poses[i].orientation.w])
-        self.rfingers_goal = np.array(rfingers_goal)
-        # print("rfingers_callback pos_list:", pos_list)
-        # self.r_goal = pin.XYZQUATToSE3(pos)
+            pos = np.array([msg.poses[i].position.x, msg.poses[i].position.y, msg.poses[i].position.z, msg.poses[i].orientation.x, msg.poses[i].orientation.y, msg.poses[i].orientation.z, msg.poses[i].orientation.w])
+            rfingers_goal.append(pin.XYZQUATToSE3(pos))
+        self.rfingers_goal = rfingers_goal
         self.rfingers_ctrlFlag = True   
 
 def main():
