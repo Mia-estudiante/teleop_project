@@ -1,0 +1,110 @@
+<mujoco model="igris_c_v2_complete">
+  <compiler angle="radian" meshdir="meshes/" balanceinertia="false"/>
+  <size njmax="8000" nconmax="4000" />
+  <option timestep='0.0005' iterations="500" tolerance="1e-7" solver="Newton" jacobian="dense" cone="elliptic" noslip_iterations="100" noslip_tolerance="1e-7"/>
+
+  <default>
+    <default class="robot">
+      <default class="visual">
+        <geom group="1" type="mesh" contype="0" conaffinity="0" density="0" rgba="1 1 1 1"/>
+      </default>
+      <default class="collision">
+        <geom material="collision_material" rgba="1.0 0.28 0.1 0.0" condim="3" contype="1" conaffinity="1" priority="1" group="2" solref="0.01 1" friction="1 0.005 0.0001" />
+        <equality solimp="0.9 0.95 0.001 0.5 2" solref="0.01 1" />
+      </default>
+    </default>
+    <motor ctrllimited="true" />
+    
+    <default class="actuator_150"><joint damping="0.1" frictionloss="2.4" limited="true"/><motor ctrlrange="-150.0 150.0"/></default>  
+    <default class="actuator_120"><joint damping="0.1" frictionloss="0.812" limited="true"/><motor ctrlrange="-120.0 120.0"/></default>  
+    <default class="actuator_90"><joint damping="0.1" frictionloss="1.81" limited="true"/><motor ctrlrange="-90.0 90.0"/></default>  
+    <default class="actuator_60"><joint damping="0.1" frictionloss="0.54" limited="true"/><motor ctrlrange="-60.0 60.0"/></default>  
+    <default class="actuator_8"><joint damping="0.1" frictionloss="0.264" limited="true"/><motor ctrlrange="-8.0 8.0"/></default>  
+    <default class="actuator_7"><joint damping="0.1" frictionloss="0.356" limited="true"/><motor ctrlrange="-7.0 7.0"/></default>
+    
+    <default class="actuator_hand">
+      <joint damping="0.05" frictionloss="0.01" limited="true" armature="0.001"/>
+      <motor ctrlrange="-5.0 5.0"/>
+    </default>
+  </default>
+
+  <asset>
+    <material name="random" rgba="0.0706 0.0706 0.0706 0.7" />
+    <material name="collision_material" rgba="1.0 0.28 0.1 0.9" />
+    <mesh name="Upper_Body" file="Waist_Yaw.stl" scale="0.01 0.01 0.01"/>
+    <mesh name="L_Palm" file="hand/meshes/Palm_Left.stl" scale="0.01 0.01 0.01"/>
+    <mesh name="Thumb_Prox" file="hand/meshes/Thumb_Proximal_Left.stl" scale="0.01 0.01 0.01"/>
+    <mesh name="Finger_Mid" file="hand/meshes/Finger_Middle.stl" scale="0.01 0.01 0.01"/>
+    <mesh name="Finger_Dist" file="hand/meshes/Finger_Distal.stl" scale="0.01 0.01 0.01"/>
+    </asset>
+
+  <worldbody>
+    <body name="base_link" pos="0 0 0.97" childclass="robot">
+      <freejoint name="floating_base" />
+      <site name="base_link_imu_site" pos="0.050 0 0.047" quat="0.707 0 0.707 0" size="0.01"/>
+      <inertial pos="0.00175 0.00112 0.15154" mass="12.974" fullinertia="0.1511 0.1288 0.0807 -0.0013 0.0084 -0.0008"/>
+      <geom type="mesh" mesh="Upper_Body" class="visual" material="random" />
+
+      <body name="Link_Waist_Yaw">
+        <joint name="Joint_Waist_Yaw" class="actuator_60" axis="0 0 1" range="-1.57 1.57" />
+        <body name="Link_Waist_Roll" pos="0.05 0 -0.026">
+          <joint name="Joint_Waist_Roll" class="actuator_60" axis="1 0 0" range="-0.45 0.45" />
+          <body name="Link_Waist_Pitch" pos="0 0 -0.04">
+            <joint name="Joint_Waist_Pitch" class="actuator_60" axis="0 1 0" range="-0.87 0.28" />
+            </body>
+        </body>
+      </body>
+
+      <body name="Link_Neck_Yaw" pos="0 0 0.357">
+        <joint name="Joint_Neck_Yaw" class="actuator_7" axis="0 0 1" range="-1.22 1.22" />
+        <body name="Link_Neck_Pitch">
+          <joint name="Joint_Neck_Pitch" class="actuator_7" axis="0 1 0" range="-0.52 0.52" />
+        </body>
+      </body>
+
+      <body name="Link_Shoulder_Pitch_Left" pos="0 0.171 0.266">
+        <joint name="Joint_Shoulder_Pitch_Left" class="actuator_60" axis="0 1 0" range="-3.14 1.04" />
+        <body name="Link_Wrist_Pitch_Left" pos="0 0.01 -0.3">
+          <joint name="Joint_Wrist_Pitch_Left" class="actuator_8" axis="0 1 0" range="-0.69 0.69" />
+          
+          <body name="Left_Palm" pos="0 0.01 -0.02" quat="0.707 0 -0.707 0">
+            <inertial pos="0.00336 0.00299 0.04736" mass="0.168" diaginertia="0.00016 0.00025 0.00012" />
+            <geom type="mesh" mesh="L_Palm" class="visual" material="random" />
+            <body name="L_Thumb_P" pos="0.026 0.0132 0.0299">
+              <inertial pos="0.007 0.0 0.01" mass="0.018" diaginertia="0.00001 0.00001 0.00001" />
+              <joint name="L_thumb_proximal_yaw_joint" axis="0 0 1" range="0 1.72" class="actuator_hand"/>
+              <body name="L_Thumb_M" pos="0.023 0.0036 0.015">
+                <inertial pos="0.0015 0.0004 0.019" mass="0.019" diaginertia="0.00001 0.00001 0.00001" />
+                <joint name="L_thumb_proximal_pitch_joint" axis="1 0 0" range="0 1.22" class="actuator_hand"/>
+                <body name="L_Thumb_D" pos="0 -0.001 0.04">
+                  <inertial pos="0 0 0.018" mass="0.011" diaginertia="0.00001 0.00001 0.00001" />
+                  <joint name="L_thumb_distal_joint" axis="1 0 0" range="0 1.57" class="actuator_hand"/>
+                  <site name="L_th_tip" pos="0 0 0.04"/>
+                </body>
+              </body>
+            </body>
+            <body name="L_Index_M" pos="0.0305 -0.002 0.101">
+              <inertial pos="0.0001 0.0003 0.02" mass="0.018" diaginertia="0.00001 0.00001 0.00001" />
+              <joint name="L_index_proximal_joint" axis="1 0 0" range="0 1.57" class="actuator_hand"/>
+              <body name="L_Index_D" pos="0 -0.001 0.04">
+                <inertial pos="0.0001 -0.0003 0.018" mass="0.012" diaginertia="0.00001 0.00001 0.00001" />
+                <joint name="L_index_intermediate_joint" axis="1 0 0" range="0 1.57" class="actuator_hand"/>
+                <site name="L_idx_tip" pos="0 0 0.04"/>
+              </body>
+            </body>
+            </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="Joint_Waist_Yaw" joint="Joint_Waist_Yaw" class="actuator_60" />
+    <motor name="Joint_Neck_Yaw" joint="Joint_Neck_Yaw" class="actuator_7" />
+    <motor name="L_index_proximal_joint" joint="L_index_proximal_joint" class="actuator_hand"/>
+    <motor name="L_index_intermediate_joint" joint="L_index_intermediate_joint" class="actuator_hand"/>
+    <motor name="L_thumb_proximal_yaw_joint" joint="L_thumb_proximal_yaw_joint" class="actuator_hand"/>
+    <motor name="L_thumb_proximal_pitch_joint" joint="L_thumb_proximal_pitch_joint" class="actuator_hand"/>
+    <motor name="L_thumb_distal_joint" joint="L_thumb_distal_joint" class="actuator_hand"/>
+    </actuator>
+</mujoco>

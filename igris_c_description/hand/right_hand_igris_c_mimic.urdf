@@ -1,0 +1,268 @@
+<?xml version="1.0"?>
+<robot name="Right_Hand_C_Mimic">
+
+  <link name="world" />
+  <joint name="virtual_base_joint" type="fixed">
+    <parent link="world" />
+    <child link="base_link" />
+    <origin xyz="0 0 0" rpy="1.57 0 1.57" /> [cite: 12]
+  </joint>
+
+  <link name="base_link">
+    <inertial>
+      <mass value="0.168" /> [cite: 12]
+      <origin xyz="0.00321 -0.00301 0.04736" /> [cite: 12]
+      <inertia ixx="0.00016" ixy="0.00000" ixz="0.00002" iyy="0.00025" iyz="-0.00001" izz="0.00012" /> [cite: 12]
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://igris_c_description/hand/meshes/Palm_Right.stl" scale="0.01 0.01 0.01"/> [cite: 12]
+      </geometry>
+      <material name="random"><color rgba="0.0706 0.0706 0.0706 0.7" /></material> [cite: 13]
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://igris_c_description/hand/meshes/Palm_Right.stl" scale="0.01 0.01 0.01"/> [cite: 13]
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="0_Joint_Thumb_Proximal" type="revolute">
+    <parent link="base_link" /> [cite: 30]
+    <child link="Link_Thumb_Proximal" /> [cite: 30]
+    <origin xyz="0.026 -0.0132 0.0299" rpy="0.08726646 0 0" /> [cite: 30]
+    <axis xyz="0 0 1" /> [cite: 30]
+    <limit lower="-1.727875959" upper="0" effort="1000" velocity="5.0" /> [cite: 30]
+  </joint>
+  <link name="Link_Thumb_Proximal">
+    <inertial>
+      <mass value="0.018" /> [cite: 14]
+      <origin xyz="0.00704 -0.00006 0.01031" /> [cite: 14]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 14]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Thumb_Proximal_Right.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 14]
+    </visual>
+  </link>
+
+  <joint name="1_Joint_Thumb_Middle" type="revolute">
+    <parent link="Link_Thumb_Proximal" /> [cite: 30]
+    <child link="Link_Thumb_Middle" /> [cite: 30]
+    <origin xyz="0.0230 -0.0035 0.015" rpy="-1.22173048 0 -1.57079633" /> [cite: 30]
+    <axis xyz="1 0 0" /> [cite: 30]
+    <limit lower="0" upper="1.221730476" effort="1000" velocity="5.0" /> [cite: 30]
+  </joint>
+  <link name="Link_Thumb_Middle">
+    <inertial>
+      <mass value="0.019" /> [cite: 15]
+      <origin xyz="-0.00154 0.00041 0.01911" /> [cite: 15]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 15]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Thumb_Middle_Right.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 15]
+    </visual>
+  </link>
+
+  <joint name="2_Joint_Thumb_Distal" type="revolute">
+    <parent link="Link_Thumb_Middle" /> [cite: 31]
+    <child link="Link_Thumb_Distal" /> [cite: 31]
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0" /> [cite: 31]
+    <axis xyz="1 0 0" /> [cite: 31]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 31]
+    <mimic joint="1_Joint_Thumb_Middle" multiplier="1.0" /> 
+  </joint>
+  <link name="Link_Thumb_Distal">
+    <inertial>
+      <mass value="0.011" /> [cite: 16]
+      <origin xyz="-0.00015 -0.00047 0.01843" /> [cite: 16]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 16]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Thumb_Distal_Right.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 16]
+    </visual>
+  </link>
+
+  <link name='thumb_tip'/>
+  <joint name="thumb_tip_joint" type="fixed">
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0"/>
+    <parent link="Link_Thumb_Distal"/>
+    <child link="thumb_tip"/>
+  </joint>
+
+  <joint name="3_Joint_Index_Middle" type="revolute">
+    <parent link="base_link" /> [cite: 31]
+    <child link="Link_Index_Middle" /> [cite: 31]
+    <origin xyz="0.0305 0.002 0.101" rpy="0 0 0" /> [cite: 31]
+    <axis xyz="1 0 0" /> [cite: 31]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 31]
+  </joint>
+  <link name="Link_Index_Middle">
+    <inertial>
+      <mass value="0.018" /> [cite: 17]
+      <origin xyz="0.00010 0.00031 0.02005" /> [cite: 17]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 17]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Middle.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 18]
+    </visual>
+  </link>
+
+  <joint name="4_Joint_Index_Distal" type="revolute">
+    <parent link="Link_Index_Middle" /> [cite: 31]
+    <child link="Link_Index_Distal" /> [cite: 31]
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0" /> [cite: 31]
+    <axis xyz="1 0 0" /> [cite: 31]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 31]
+    <mimic joint="3_Joint_Index_Middle" multiplier="1.0" />
+  </joint>
+  <link name="Link_Index_Distal">
+    <inertial>
+      <mass value="0.012" /> [cite: 23]
+      <origin xyz="0.00013 -0.00035 0.01857" /> [cite: 23]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 23]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Distal.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 23]
+    </visual>
+  </link>
+
+  <link name='index_tip'/>
+  <joint name="index_tip_joint" type="fixed">
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0"/>
+    <parent link="Link_Index_Distal"/>
+    <child link="index_tip"/>
+  </joint>
+
+  <joint name="5_Joint_Middle_Middle" type="revolute">
+    <parent link="base_link" /> [cite: 32]
+    <child link="Link_Middle_Middle" /> [cite: 32]
+    <origin xyz="0.0085 0.002 0.101" rpy="0 0 0" /> [cite: 32]
+    <axis xyz="1 0 0" /> [cite: 32]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 32]
+  </joint>
+  <link name="Link_Middle_Middle">
+    <inertial>
+      <mass value="0.018" /> [cite: 19]
+      <origin xyz="0.00010 0.00031 0.02005" /> [cite: 19]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 19]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Middle.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 19]
+    </visual>
+  </link>
+
+  <joint name="6_Joint_Middle_Distal" type="revolute">
+    <parent link="Link_Middle_Middle" /> [cite: 32]
+    <child link="Link_Middle_Distal" /> [cite: 32]
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0" /> [cite: 32]
+    <axis xyz="1 0 0" /> [cite: 32]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 32]
+    <mimic joint="5_Joint_Middle_Middle" multiplier="1.0" />
+  </joint>
+  <link name="Link_Middle_Distal">
+    <inertial>
+      <mass value="0.012" /> [cite: 24]
+      <origin xyz="0.00013 -0.00035 0.01857" /> [cite: 24]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 24]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Distal.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 24]
+    </visual>
+  </link>
+
+  <link name='middle_tip'/>
+  <joint name="middle_tip_joint" type="fixed">
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0"/>
+    <parent link="Link_Middle_Distal"/>
+    <child link="middle_tip"/>
+  </joint>
+
+  <joint name="7_Joint_Ring_Middle" type="revolute">
+    <parent link="base_link" /> [cite: 33]
+    <child link="Link_Ring_Middle" /> [cite: 33]
+    <origin xyz="-0.0139 0.0010 0.0990" rpy="-0.00121872 -0.03488531 0.03492784" /> [cite: 33]
+    <axis xyz="1 0 0" /> [cite: 33]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 33]
+  </joint>
+  <link name="Link_Ring_Middle">
+    <inertial>
+      <mass value="0.018" /> [cite: 20]
+      <origin xyz="0.00010 0.00031 0.02005" /> [cite: 20]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 20]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Middle.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 20]
+    </visual>
+  </link>
+
+  <joint name="8_Joint_Ring_Distal" type="revolute">
+    <parent link="Link_Ring_Middle" /> [cite: 33]
+    <child link="Link_Ring_Distal" /> [cite: 33]
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0" /> [cite: 33]
+    <axis xyz="1 0 0" /> [cite: 33]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 33]
+    <mimic joint="7_Joint_Ring_Middle" multiplier="1.0" />
+  </joint>
+  <link name="Link_Ring_Distal">
+    <inertial>
+      <mass value="0.012" /> [cite: 26]
+      <origin xyz="0.00013 -0.00035 0.01857" /> [cite: 26]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 26]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Distal.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 26]
+    </visual>
+  </link>
+
+  <link name='ring_tip'/>
+  <joint name="ring_tip_joint" type="fixed">
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0"/>
+    <parent link="Link_Ring_Distal"/>
+    <child link="ring_tip"/>
+  </joint>
+
+  <joint name="9_Joint_Little_Middle" type="revolute">
+    <parent link="base_link" /> [cite: 34]
+    <child link="Link_Little_Middle" /> [cite: 34]
+    <origin xyz="-0.0362 -0.0012 0.0942" rpy="-0.00274895 -0.08721049 0.05251174" /> [cite: 34]
+    <axis xyz="1 0 0" /> [cite: 34]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 34]
+  </joint>
+  <link name="Link_Little_Middle">
+    <inertial>
+      <mass value="0.018" /> [cite: 21]
+      <origin xyz="0.00010 0.00031 0.02005" /> [cite: 21]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 21]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Middle.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 22]
+    </visual>
+  </link>
+
+  <joint name="10_Joint_Little_Distal" type="revolute">
+    <parent link="Link_Little_Middle" /> [cite: 34]
+    <child link="Link_Little_Distal" /> [cite: 34]
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0" /> [cite: 34]
+    <axis xyz="1 0 0" /> [cite: 34]
+    <limit lower="0" upper="1.570796327" effort="1000" velocity="5.0" /> [cite: 34]
+    <mimic joint="9_Joint_Little_Middle" multiplier="1.0" />
+  </joint>
+  <link name="Link_Little_Distal">
+    <inertial>
+      <mass value="0.012" /> [cite: 27]
+      <origin xyz="0.00013 -0.00035 0.01857" /> [cite: 27]
+      <inertia ixx="0.00001" ixy="0.00000" ixz="0.00000" iyy="0.00001" iyz="0.00000" izz="0.00001" /> [cite: 27]
+    </inertial>
+    <visual>
+      <geometry><mesh filename="package://igris_c_description/hand/meshes/Finger_Distal.stl" scale="0.01 0.01 0.01"/></geometry> [cite: 27]
+    </visual>
+  </link>
+
+  <link name='little_tip'/>
+  <joint name="little_tip_joint" type="fixed">
+    <origin xyz="0 -0.001 0.04" rpy="0 0 0"/>
+    <parent link="Link_Little_Distal"/>
+    <child link="little_tip"/>
+  </joint>
+
+</robot>
