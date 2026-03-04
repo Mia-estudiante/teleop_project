@@ -76,37 +76,37 @@ class H12Wrapper(RobotWrapper):
                             "torso_joint",
 
                             # 왼쪽 손가락 (Left Fingers/Thumb)
-                            # "L_thumb_proximal_yaw_joint",
-                            # "L_thumb_proximal_pitch_joint",
-                            # "L_thumb_intermediate_joint",
-                            # "L_thumb_distal_joint",
-                            # "L_index_proximal_joint",
-                            # "L_index_intermediate_joint",
-                            # "L_middle_proximal_joint",
-                            # "L_middle_intermediate_joint",
-                            # "L_ring_proximal_joint",
-                            # "L_ring_intermediate_joint",
-                            # "L_pinky_proximal_joint",
-                            # "L_pinky_intermediate_joint",
+                            "L_thumb_proximal_yaw_joint",
+                            "L_thumb_proximal_pitch_joint",
+                            "L_thumb_intermediate_joint",
+                            "L_thumb_distal_joint",
+                            "L_index_proximal_joint",
+                            "L_index_intermediate_joint",
+                            "L_middle_proximal_joint",
+                            "L_middle_intermediate_joint",
+                            "L_ring_proximal_joint",
+                            "L_ring_intermediate_joint",
+                            "L_pinky_proximal_joint",
+                            "L_pinky_intermediate_joint",
 
                             # 오른쪽 손가락 (Right Fingers/Thumb)
-                            # "R_thumb_proximal_yaw_joint",
-                            # "R_thumb_proximal_pitch_joint",
-                            # "R_thumb_intermediate_joint",
-                            # "R_thumb_distal_joint",
-                            # "R_index_proximal_joint",
-                            # "R_index_intermediate_joint",
-                            # "R_middle_proximal_joint",
-                            # "R_middle_intermediate_joint",
-                            # "R_ring_proximal_joint",
-                            # "R_ring_intermediate_joint",
-                            # "R_pinky_proximal_joint",
-                            # "R_pinky_intermediate_joint"
+                            "R_thumb_proximal_yaw_joint",
+                            "R_thumb_proximal_pitch_joint",
+                            "R_thumb_intermediate_joint",
+                            "R_thumb_distal_joint",
+                            "R_index_proximal_joint",
+                            "R_index_intermediate_joint",
+                            "R_middle_proximal_joint",
+                            "R_middle_intermediate_joint",
+                            "R_ring_proximal_joint",
+                            "R_ring_intermediate_joint",
+                            "R_pinky_proximal_joint",
+                            "R_pinky_intermediate_joint"
                         ]
 
         # 모든 값이 0이 아닌, Pinocchio가 권장하는 기본 자세(Quaternion 1 포함)를 가져옵니다.
         q_neutral = pin.neutral(self.__robot.model)
-        self.logger.info(f'Robot neutral configuration: {q_neutral}')
+        # self.logger.info(f'Robot neutral configuration: {q_neutral}')
 
         # 이 값을 reference_configuration에 전달합니다.
         self.robot_reduced = self.__robot.buildReducedRobot(
@@ -126,7 +126,7 @@ class H12Wrapper(RobotWrapper):
         self.state.nq = self.robot_reduced.nq
         self.state.nv = self.robot_reduced.nv
         self.state.q = zero(self.state.nq) # 14
-        self.state.v = zero(self.state.nv)
+        self.state.v = zero(self.state.nv) # 14
         self.state.l_oMi = pin.SE3()
         self.state.r_oMi = pin.SE3()
 
@@ -142,17 +142,30 @@ class H12Wrapper(RobotWrapper):
         l_initial_placement = self.model.jointPlacements[l_joint_id]
         r_joint_id = self.model.getJointId("right_wrist_yaw_joint")
         r_initial_placement = self.model.jointPlacements[r_joint_id]
-        
         '''
 
         self.joint_names = [self.model.names[i] for i in range(self.model.njoints) if self.model.names[i] not in self.joint2lock]
-        # # 전체 관절 이름과 부모 ID를 리스트로 출력
+        # print(self.joint_names)
+        
+        print(f"{'Joint Name':<30} | {'q_index':<10} | {'Size'}")
+        print("-" * 50)
+
+        for i in range(1, self.model.njoints):
+            name = self.model.names[i]
+            joint = self.model.joints[i]
+            
+            start_idx = joint.idx_q
+            num_q = joint.nq
+            
+            # 해당 조인트가 q 벡터에서 차지하는 범위를 출력
+            print(f"{name:<30} | {start_idx:<10} | {num_q}")
+
+        # 전체 관절 이름과 부모 ID를 리스트로 출력
         # for i, (name, parent) in enumerate(zip(self.model.names, self.model.parents)):
         #     print(f"ID: {i:2} | Joint: {name:20} | Parent ID: {parent}")
 
     def computeAllTerms(self):
         pin.computeAllTerms(self.model, self.data, self.state.q, self.state.v)
-
         self.state.l_J = self.getJointJacobian(self.index(self.l_eef), pin.LOCAL)[:,:int(self.state.nq/2)]
         self.state.r_J = self.getJointJacobian(self.index(self.r_eef), pin.LOCAL)[:,int(self.state.nq/2):]
 
