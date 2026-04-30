@@ -1,0 +1,136 @@
+<mujoco model="igris_bimanual_transfer">
+  <!-- Bimanual cube transfer scene for igris_c_v2.
+       Place this file in the SAME directory as igris_c_v2.xml
+       so that the "meshes/" relative path inside the robot file
+       resolves correctly. -->
+  <include file="igris_c_v2_pos.xml"/>
+
+  <statistic center="0.3 0 0.95" extent="2.0"/>
+
+  <visual>
+    <headlight diffuse="0.5 0.5 0.5" ambient="0.35 0.35 0.35" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="135" elevation="-20" offwidth="1280" offheight="720"/>
+    <quality shadowsize="4096"/>
+    <map force="0.1" zfar="30"/>
+  </visual>
+
+  <asset>
+    <!-- Sky and ground textures -->
+    <texture type="skybox" builtin="gradient"
+             rgb1="0.6 0.7 0.85" rgb2="0.25 0.35 0.5"
+             width="512" height="512"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge"
+             rgb1="0.25 0.30 0.35" rgb2="0.15 0.20 0.25" markrgb="0.8 0.8 0.8"
+             width="300" height="300"/>
+    <material name="groundplane" texture="groundplane"
+              texuniform="true" texrepeat="5 5" reflectance="0.1"/>
+
+    <!-- Furniture and object materials -->
+    <material name="table_top_mat" rgba="0.78 0.60 0.42 1" reflectance="0.05"/>
+    <material name="table_leg_mat" rgba="0.45 0.30 0.20 1"/>
+    <material name="cube_mat"      rgba="0.85 0.25 0.20 1"/>
+    <material name="target_mat"    rgba="0.20 0.85 0.30 0.45"/>
+  </asset>
+
+  <worldbody>
+    <!-- Floor -->
+    <geom name="floor" type="plane" pos="0 0 0" size="0 0 0.05"
+          material="groundplane" condim="3"
+          friction="1 0.005 0.0001"/>
+
+    <!-- Lighting -->
+    <light name="spotlight" mode="targetbody" target="base_link"
+           pos="1.0 1.0 3.0" cutoff="60" exponent="20"
+           diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3"/>
+    <light name="fill_light" pos="-1.0 -1.0 2.5" dir="0.5 0.5 -1"
+           diffuse="0.3 0.3 0.3" specular="0 0 0"/>
+
+    <!-- Table.
+         Front edge at x = 0.17, top surface at z = 0.80.
+         Sized so anything on top stays within ~0.55 to 0.60 m of
+         each shoulder (arm length is about 0.61 m). -->
+    <body name="table" pos="0.42 0 0">
+      <geom name="table_top" type="box" size="0.25 0.4 0.02" pos="0 0 0.83"
+            material="table_top_mat"
+            contype="1" conaffinity="1" condim="3"
+            friction="1 0.005 0.0001"
+            solref="0.005 1"/>
+      <geom name="table_leg_fl" type="cylinder" size="0.022 0.405" pos="0.22  0.37 0.405"
+            material="table_leg_mat" contype="1" conaffinity="1"/>
+      <geom name="table_leg_fr" type="cylinder" size="0.022 0.405" pos="0.22 -0.37 0.405"
+            material="table_leg_mat" contype="1" conaffinity="1"/>
+      <geom name="table_leg_bl" type="cylinder" size="0.022 0.405" pos="-0.22  0.37 0.405"
+            material="table_leg_mat" contype="1" conaffinity="1"/>
+      <geom name="table_leg_br" type="cylinder" size="0.022 0.405" pos="-0.22 -0.37 0.405"
+            material="table_leg_mat" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Target placement zone (visual only).
+         A green pad on the LEFT side of the table indicating where
+         the cube should be transferred to. -->
+    <site name="target_zone" pos="0.32 0.25 0.851"
+          size="0.07 0.07 0.001" type="box" material="target_mat"/>
+
+    <!-- Cube to transfer.
+         A 10 cm cube placed slightly to the RIGHT side of the table.
+         Both hands can approach from opposite sides for a bimanual grasp.
+         High condim/friction makes bimanual grasping feasible. -->
+    <body name="cube" pos="0.32 -0.20 0.91">
+      <freejoint name="cube_free"/>
+      <inertial pos="0 0 0" mass="0.4"
+                diaginertia="0.00067 0.00067 0.00067"/>
+      <geom name="cube_geom" type="box" size="0.05 0.05 0.05"
+            material="cube_mat"
+            contype="1" conaffinity="1" condim="6"
+            friction="1.5 0.05 0.001"
+            solref="0.01 1" solimp="0.95 0.99 0.001"/>
+      <!-- Helper sites for IK and grasping references -->
+      <site name="cube_center" pos="0 0 0"     size="0.005" rgba="1 1 0 1"/>
+      <site name="cube_left"   pos="0  0.05 0" size="0.005" rgba="0 1 1 1"/>
+      <site name="cube_right"  pos="0 -0.05 0" size="0.005" rgba="0 1 1 1"/>
+    </body>
+
+    <!-- Cameras -->
+    <camera name="front_view" pos="1.6 0 1.4"  xyaxes="0 -1 0 -0.5 0 1" mode="fixed"/>
+    <camera name="side_view"  pos="0.4 1.6 1.3" xyaxes="-1 0 0 0 -0.4 1" mode="fixed"/>
+    <camera name="top_view"   pos="0.42 0 2.0"  xyaxes="1 0 0 0 1 0"     mode="fixed"/>
+  </worldbody>
+
+  <!-- Optional: weld the robot base to the world.
+       The robot's leg/waist joints are commented out (rigid lower body),
+       so the robot currently rests on the floor via the freejoint.
+       For a clean manipulation-only experiment, uncomment the weld
+       below to fix the pelvis in the air and avoid any base drift. -->
+  
+  <equality>
+    <weld name="fix_base" body1="base_link"/>
+  </equality>
+ 
+
+  <keyframe>
+    <!-- qpos layout (28 dof total):
+           [0:7]    base_link freejoint   (x y z qw qx qy qz)
+           [7:14]   left  arm  (Shoulder P/R/Y, Elbow P, Wrist Y/R/P)
+           [14:21]  right arm  (Shoulder P/R/Y, Elbow P, Wrist Y/R/P)
+           [21:28]  cube  freejoint        (x y z qw qx qy qz)
+         ctrl layout (14 motors): left arm 7 then right arm 7
+                                  (torque control, all zero at home) -->
+    <key name="home"
+         qpos="0 0 0.97 1 0 0 0
+               -0.7  0.30 0.0 -1.30 0.0 0.0 0.0
+               -0.7 -0.30 0.0 -1.30 0.0 0.0 0.0
+               0.42 -0.20 0.86 1 0 0 0"
+         ctrl="0 0 0 0 0 0 0
+               0 0 0 0 0 0 0"/>
+
+    <!-- Pre-grasp pose: hands brought closer to the cube from both sides -->
+    <key name="pregrasp"
+         qpos="0 0 0.97 1 0 0 0
+               -1.10  0.55 0.0 -1.50 0.0 0.0 0.0
+               -1.10 -0.55 0.0 -1.50 0.0 0.0 0.0
+               0.22 -0.20 0.91 1 0 0 0"
+         ctrl="0 0 0 0 0 0 0
+               0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>
