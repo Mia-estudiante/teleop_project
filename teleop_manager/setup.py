@@ -24,9 +24,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'teleop_arm_data_node = teleop_manager.teleop_arm_data_node:main',
             'teleop_arm_node = teleop_manager.teleop_arm_node:main',
-            'teleop_arm_hand_node = teleop_manager.teleop_arm_hand_node:main'
+            'teleop_arm_hand_node = teleop_manager.teleop_arm_hand_node:main',
+            'teleop_upper_node = teleop_manager.teleop_upper_node:main'
         ],
     },
 )

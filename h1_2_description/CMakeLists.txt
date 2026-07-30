@@ -5,37 +5,12 @@ project(h1_2_description)
 find_package(ament_cmake REQUIRED)
 
 install(
-  FILES scene.xml
+  FILES scene.xml scene_hand.xml h1_2.xml h1_2_hand.xml h1_2.urdf
   DESTINATION share/${PROJECT_NAME}
 )
 
 install(
-  FILES scene_.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES h1_2.urdf
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES h1_2.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES h1_2_.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  DIRECTORY meshes
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  DIRECTORY inspire_hand
+  DIRECTORY inspire_hand meshes
   DESTINATION share/${PROJECT_NAME}
 )
 

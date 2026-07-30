@@ -1,3 +1,5 @@
+import argparse
+
 import rclpy
 from rclpy.node import Node
 
@@ -12,16 +14,18 @@ from pinocchio.utils import *
 import numpy as np
 
 from teleop_manager.src.robot.h1_2_wrapper import H12Wrapper
+from teleop_manager.src.robot.igris_c_wrapper import IgrisCWrapper
 from teleop_manager.src.dex_retargeting.DexRetargeting import DexRetargeting
 # from simulation.simulation_hand_node import MujocoSimulationHandNode
 
 THRES = 3e-4
 
 class TeleopUpperNode(Node):
-    def __init__(self):
+    def __init__(self, robot_name):
         super().__init__('teleop_upper_node')
         self.get_logger().info('Teleop Upper Node has been started.')
-
+        
+        self.robot_name = robot_name
         self.head_goal = pin.SE3()
         self.l_goal = pin.SE3()
         self.r_goal = pin.SE3()
@@ -32,8 +36,18 @@ class TeleopUpperNode(Node):
         self.lfingers_qdes = np.zeros(6)
         self.rfingers_qdes = np.zeros(6)
 
-        self.robot = H12Wrapper()
-        self.dexretargeting = DexRetargeting('h1_2') # 추후, params 로 값을 받도록 할 것
+        if robot_name == 'h1_2':
+            self.robot = H12Wrapper()
+        elif robot_name == 'igris_c':
+            self.robot = IgrisCWrapper()
+            self.rviz_publisher = self.create_publisher(JointState, '/joint_states', 10)
+            self.all_joint_names = self.robot.all_joint_names
+            self.all_joint_names.remove("universe")
+            self.hand_joint_names = [joint_name for joint_name in self.all_joint_names if "Left_" in joint_name or "Right_" in joint_name]
+
+        self.dexretargeting = DexRetargeting(robot_name)
+        # print("self.left_retargeting_index", self.dexretargeting.left_retargeting_index)
+        # print("self.right_retargeting_index", self.dexretargeting.right_retargeting_index)
 
         self.publisher = self.create_publisher(Float64MultiArray, '/mujoco/controller', 10)
         self.subscriber = self.create_subscription(JointState, '/mujoco/joint_states', self.joint_state_callback, 10)
@@ -53,13 +67,19 @@ class TeleopUpperNode(Node):
         self.lfingers_ctrlFlag = False     
         self.rfingers_ctrlFlag = False
         ############
-        self.lwrist_rot_diff = np.array([[1,0,0],[0,0,1],[0,-1,0]]).T
-        self.rwrist_rot_diff = np.array([[1,0,0],[0,0,-1],[0,1,0]]).T
-        self.lwrist_rot_diff_se3 = pin.SE3(self.lwrist_rot_diff, np.zeros(3))
-        self.rwrist_rot_diff_se3 = pin.SE3(self.rwrist_rot_diff, np.zeros(3))
-        
+        if robot_name == 'h1_2':
+            self.lwrist_rot_diff = np.array([[1,0,0],[0,0,-1],[0,1,0]])
+            self.rwrist_rot_diff = np.array([[1,0,0],[0,0,1],[0,-1,0]])
+            self.lwrist_rot_diff_se3 = pin.SE3(self.lwrist_rot_diff, np.zeros(3))
+            self.rwrist_rot_diff_se3 = pin.SE3(self.rwrist_rot_diff, np.zeros(3))
+        elif robot_name == 'igris_c':
+            self.lwrist_rot_diff = np.array([[1,0,0],[0,0,1],[0,-1,0]]).T @ np.array([[0,0,-1],[0,1,0],[1,0,0]])
+            self.rwrist_rot_diff = np.array([[1,0,0],[0,0,-1],[0,1,0]]).T @ np.array([[0,0,-1],[0,1,0],[1,0,0]])
+            self.lwrist_rot_diff_se3 = pin.SE3(self.lwrist_rot_diff, np.zeros(3))
+            self.rwrist_rot_diff_se3 = pin.SE3(self.rwrist_rot_diff, np.zeros(3))
+
     def timer_callback(self):
-        qdes = np.zeros(26)
+        # qdes = np.zeros(26)
         if self.ctrlFlag:
             self.get_logger().info(f"Joint State Received.")
             if self.head_ctrlFlag and self.lwrist_ctrlFlag and self.rwrist_ctrlFlag and self.lfingers_ctrlFlag and self.rfingers_ctrlFlag:
@@ -68,8 +88,8 @@ class TeleopUpperNode(Node):
                 headMrwrist = self.robot.state.head_oMi.inverse() * self.robot.state.r_oMi
                 
                 # USER
-                headMl_target =  self.head_goal.inverse() * self.l_goal * self.lwrist_rot_diff_se3
-                headMr_target =  self.head_goal.inverse() * self.r_goal * self.rwrist_rot_diff_se3
+                headMl_target =  self.head_goal.inverse() * self.l_goal.copy() * self.lwrist_rot_diff_se3
+                headMr_target =  self.head_goal.inverse() * self.r_goal.copy() * self.rwrist_rot_diff_se3
                 
                 # 1. 포즈 오차 계산 (목표와 현재의 차이)
                 l_dMi = headMlwrist.inverse() * headMl_target
@@ -107,19 +127,100 @@ class TeleopUpperNode(Node):
                     np.array(r_wristMl_fingers)
                 )[self.dexretargeting.right_retargeting_index]
 
-        qdes[:7] = self.l_qdes # left wrist
-        qdes[7:13] = self.lfingers_qdes # left fingers
-        qdes[13:20] = self.r_qdes # right wrist
-        qdes[20:] = self.rfingers_qdes # right fingers
-        self.upper_publish(qdes)
+        arm_qdes = np.concatenate([
+            self.l_qdes,
+            self.r_qdes
+        ])
+        hand_qdes = np.concatenate([
+            self.lfingers_qdes,
+            self.rfingers_qdes
+        ])
+        if self.robot_name == "h1_2":
+            self.publish_h1_2(
+                arm_qdes,
+                hand_qdes
+            )
+        elif self.robot_name == "igris_c":
+            self.publish_igris_c(
+                arm_qdes,
+                hand_qdes
+            )
+
+    def publish_h1_2(self, arm_qdes, hand_qdes):
+        qdes = np.zeros(26)
+        qdes[:7] = arm_qdes[:7]
+        qdes[7:13] = hand_qdes[:6]
+        qdes[13:20] = arm_qdes[7:]
+        qdes[20:] = hand_qdes[6:]
+        msg = Float64MultiArray()
+        msg.data = qdes.tolist()
+        self.publisher.publish(msg)
+
+    def publish_igris_c(self, arm_qdes, hand_qdes):
+        # mujoco
+        mujoco_msg = Float64MultiArray()
+        mujoco_msg.data = arm_qdes.tolist()
+        self.publisher.publish(mujoco_msg)
+
+        # rviz
+        self.rviz_publish(
+            arm_qdes,
+            hand_qdes
+        )
 
     '''
     Mujoco JointState: 현재 robot state 정보를 받아서 H12Wrapper의 state에 반영
     '''
-    def upper_publish(self, qdes):
-        upper_msg = Float64MultiArray()
-        upper_msg.data = qdes.tolist()
-        self.publisher.publish(upper_msg)
+    # def upper_publish(self, qdes):
+    #     upper_msg = Float64MultiArray()
+    #     upper_msg.data = qdes.tolist()
+    #     self.publisher.publish(upper_msg)
+    
+    def rviz_publish(self, arm_qdes, hand_qdes):
+        rviz_msg = JointState()
+        rviz_msg.header.stamp = self.get_clock().now().to_msg()
+        rviz_msg.name = self.all_joint_names
+        hand_msg = JointState()
+        hand_msg.header.stamp = self.get_clock().now().to_msg()
+        hand_msg.name = self.hand_joint_names
+        
+        q_out = [0.0] * len(self.all_joint_names)
+        q_out[15:22] = arm_qdes[:7] # left wrist
+        q_out[33:40] = arm_qdes[7:] # right wrist
+
+        q_hand_out = [0.0] * len(self.hand_joint_names)
+
+        def map_to_all(side, qpos, joint_names):
+            for i, name in enumerate(joint_names):
+                if side+name in self.all_joint_names:
+                    q_out[self.all_joint_names.index(side+name)] = float(qpos[i])
+                    q_hand_out[self.hand_joint_names.index(side+name)] = float(qpos[i])
+                    # print("Mapping:", side+name, "->", self.all_joint_names.index(side+name))
+        map_to_all('Left_', hand_qdes[:6], self.dexretargeting.left_retargeting.optimizer.target_joint_names)
+        map_to_all('Right_', hand_qdes[6:], self.dexretargeting.right_retargeting.optimizer.target_joint_names)
+    
+        mimic_map = {
+            'Left_2_Joint_Thumb_Distal': 'Left_1_Joint_Thumb_Middle',
+            'Left_4_Joint_Index_Distal': 'Left_3_Joint_Index_Middle',
+            'Left_6_Joint_Middle_Distal': 'Left_5_Joint_Middle_Middle',
+            'Left_8_Joint_Ring_Distal': 'Left_7_Joint_Ring_Middle',
+            'Left_10_Joint_Little_Distal': 'Left_9_Joint_Little_Middle',
+            'Right_2_Joint_Thumb_Distal': 'Right_1_Joint_Thumb_Middle',
+            'Right_4_Joint_Index_Distal': 'Right_3_Joint_Index_Middle',
+            'Right_6_Joint_Middle_Distal': 'Right_5_Joint_Middle_Middle',
+            'Right_8_Joint_Ring_Distal': 'Right_7_Joint_Ring_Middle',
+            'Right_10_Joint_Little_Distal': 'Right_9_Joint_Little_Middle'
+        }
+        for child, parent in mimic_map.items():
+            p_idx = self.all_joint_names.index(parent)
+            p_hand_idx = self.hand_joint_names.index(parent)
+            q_out[self.all_joint_names.index(child)] = q_out[p_idx]
+            q_hand_out[self.hand_joint_names.index(child)] = q_hand_out[p_hand_idx]
+
+        hand_msg.position = q_hand_out
+        # self.hand_publisher.publish(hand_msg)
+        rviz_msg.position = q_out
+        self.rviz_publisher.publish(rviz_msg)
 
     def joint_state_callback(self, msg: JointState):
         self.robot.state.q = np.array(msg.position) # 14
@@ -134,12 +235,12 @@ class TeleopUpperNode(Node):
 
     def lwrist_callback(self, msg: Pose):
         pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
-        self.l_goal = pin.XYZQUATToSE3(pos) #* self.lwrist_rot_diff_se3
+        self.l_goal = pin.XYZQUATToSE3(pos)
         self.lwrist_ctrlFlag = True
 
     def rwrist_callback(self, msg: Pose):
         pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
-        self.r_goal = pin.XYZQUATToSE3(pos) #* self.rwrist_rot_diff_se3
+        self.r_goal = pin.XYZQUATToSE3(pos)
         self.rwrist_ctrlFlag = True
 
     def lfingers_callback(self, msg: PoseArray):
@@ -159,8 +260,13 @@ class TeleopUpperNode(Node):
         self.rfingers_ctrlFlag = True   
 
 def main():
-    rclpy.init()
-    node = TeleopUpperNode()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--robot", choices=['h1_2','igris_c'], default='h1_2'
+    )
+    args, ros_args = parser.parse_known_args()
+    rclpy.init(args=ros_args)
+    node = TeleopUpperNode(args.robot)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

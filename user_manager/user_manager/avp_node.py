@@ -1,70 +1,65 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose
-from sensor_msgs.msg import Image
+from geometry_msgs.msg import Pose, PoseArray
 
 # pinocchio
 import pinocchio as pin
 from pinocchio.utils import *
-
-from avp_stream.streamer import VisionProStreamer
-
-import cv2
-from cv_bridge import CvBridge
-
-bridge = CvBridge()
 
 class AVPNode(Node):
     def __init__(self):
         super().__init__('avp_node')
         self.get_logger().info('AVP Node has been started.')
 
-        self.default_fps = 30
-        self.default_disparity = 30
-        self.default_resolution = "640x480" # same with the mjc renderer
-        self.frame = np.ones((480,640,3))
-        self.streamer = VisionProStreamer(ip="192.168.123.5")
-        # Register stereo frame callback with custom disparity scale
-        self.streamer.register_frame_callback(self.create_rgb_visualizer)
-        self.streamer.configure_video(
-            fps=self.default_fps,
-            size=self.default_resolution,     # Side-by-side stereo resolution
-            stereo=True,              # Enable stereo video mode
-        )
-        self.streamer.start_webrtc(port=9999)
-        # self.streamer.start_streaming()
-
-        self.latest = None
-
         self.head_publisher = self.create_publisher(Pose, '/head', 10)
         self.lwrist_publisher = self.create_publisher(Pose, '/lwrist', 10)
         self.rwrist_publisher = self.create_publisher(Pose, '/rwrist', 10)
-        self.camera_subscriber = self.create_subscription(Image, '/mujoco/camera', self.camera_callback, 10)
-        # self.lfingers_publisher = self.create_publisher(Pose, '/lfingers', 10)
-        # self.rfingers_publisher = self.create_publisher(Pose, '/rfingers', 10)
+        self.lfingers_publisher = self.create_publisher(PoseArray, '/lfingers', 10)
+        self.rfingers_publisher = self.create_publisher(PoseArray, '/rfingers', 10)
+        
+        self.avp_head_subscriber = self.create_subscription(Pose, '/avp/head', self.avp_head_callback, 10)
+        self.avp_lwrist_subscriber = self.create_subscription(Pose, '/avp/lwrist', self.avp_lwrist_callback, 10)
+        self.avp_rwrist_subscriber = self.create_subscription(Pose, '/avp/rwrist', self.avp_rwrist_callback, 10)
+        self.avp_lfingers_subscriber = self.create_subscription(PoseArray, '/avp/lfingers', self.avp_lfingers_callback, 10)
+        self.avp_rfingers_subscriber = self.create_subscription(PoseArray, '/avp/rfingers', self.avp_rfingers_callback, 10)
 
         self.timer = self.create_timer(0.01, self.timer_callback)
-        
-        self.pre_process = np.array([[0,1,0,0],[-1,0,0,0],[0,0,1,0],[0,0,0,1]])
-        self.head_rot_diff = np.linalg.inv([[0,1,0],[-1,0,0],[0,0,1]])
-        self.lwrist_rot_diff = np.linalg.inv([[1,0,0],[0,-1,0],[0,0,-1]])
-        self.rwrist_rot_diff = np.linalg.inv([[-1,0,0],[0,-1,0],[0,0,1]])
+
+        self.head_goal = pin.SE3()
+        self.l_goal = pin.SE3()
+        self.r_goal = pin.SE3()
+        self.lfingers_goal = []
+        self.rfingers_goal = []
+
+        self.avp_head_ctrlFlag = False
+        self.avp_lwrist_ctrlFlag = False
+        self.avp_rwrist_ctrlFlag = False
+        self.avp_lfingers_ctrlFlag = False
+        self.avp_rfingers_ctrlFlag = False
+
+        self.lwrist_rot_diff = np.array([[1,0,0],[0,0,-1],[0,1,0]])
+        self.rwrist_rot_diff = np.array([[1,0,0],[0,0,1],[0,-1,0]])
+        self.lwrist_rot_diff_se3 = pin.SE3(self.lwrist_rot_diff, np.zeros(3))
+        self.rwrist_rot_diff_se3 = pin.SE3(self.rwrist_rot_diff, np.zeros(3))
 
     def timer_callback(self):
-        self.latest = self.streamer.get_latest()
-        if self.latest is None:
-            self.get_logger().info('Waiting for pose data...')
+        if not(self.avp_head_ctrlFlag and self.avp_lwrist_ctrlFlag and self.avp_rwrist_ctrlFlag and self.avp_lfingers_ctrlFlag and self.avp_rfingers_ctrlFlag):
+            print(f"{self.avp_head_ctrlFlag}, {self.avp_lwrist_ctrlFlag}, {self.avp_rwrist_ctrlFlag}, {self.avp_lfingers_ctrlFlag}, {self.avp_rfingers_ctrlFlag}")
+            self.get_logger().info('Waiting for avp pose data...')
             return
         self.head_publish()
         self.lwrist_publish()
         self.rwrist_publish()
+        self.lfingers_publish()
+        self.rfingers_publish()
 
+    '''
+    self.head_goal: SE3
+    '''
     def head_publish(self):
-        # post process
-        head_data = self.latest.get("head")[0]
-        head_data = self.pre_process @ head_data.copy()
-        head_data[:3,:3] = head_data[:3,:3].copy() @ self.head_rot_diff
+        head_data = self.head_goal
+        print(f"[head] {head_data}")
 
         head_msg = Pose()
         xyzquat = pin.SE3ToXYZQUAT(pin.SE3(head_data))
@@ -77,11 +72,13 @@ class AVPNode(Node):
         head_msg.orientation.w = xyzquat[6]
         self.head_publisher.publish(head_msg)
 
+    '''
+    self.l_goal: SE3
+    '''
     def lwrist_publish(self):
-        # post process
-        lwrist_data = self.latest.get("left_wrist")[0]
-        lwrist_data = self.pre_process @ lwrist_data.copy()
-        lwrist_data[:3,:3] = lwrist_data[:3,:3].copy() @ self.lwrist_rot_diff
+        lwrist_data = np.array(self.l_goal)
+        # lwrist_data[:3,:3] = self.lwrist_rot_diff @ lwrist_data[:3,:3].copy() # world 기준
+        print(f"[lwrist] {lwrist_data}")
 
         wrist_msg = Pose()
         xyzquat = pin.SE3ToXYZQUAT(pin.SE3(lwrist_data))
@@ -92,13 +89,16 @@ class AVPNode(Node):
         wrist_msg.orientation.y = xyzquat[4]
         wrist_msg.orientation.z = xyzquat[5]
         wrist_msg.orientation.w = xyzquat[6]
+        
         self.lwrist_publisher.publish(wrist_msg)
 
+    '''
+    self.r_goal: SE3
+    '''
     def rwrist_publish(self):
-        # post process
-        rwrist_data = self.latest.get("right_wrist")[0]
-        rwrist_data = self.pre_process @ rwrist_data.copy()
-        rwrist_data[:3,:3] = rwrist_data[:3,:3].copy() @ self.rwrist_rot_diff
+        rwrist_data = np.array(self.r_goal)
+        # rwrist_data[:3,:3] = self.rwrist_rot_diff @ rwrist_data[:3,:3].copy()
+        print(f"[rwrist] {rwrist_data}")
 
         wrist_msg = Pose()
         xyzquat = pin.SE3ToXYZQUAT(pin.SE3(rwrist_data))
@@ -110,22 +110,93 @@ class AVPNode(Node):
         wrist_msg.orientation.z = xyzquat[5]
         wrist_msg.orientation.w = xyzquat[6]
         self.rwrist_publisher.publish(wrist_msg)
-            
-    def camera_callback(self, msg: Image):
-        frame = bridge.imgmsg_to_cv2(msg)
-        self.frame = np.fliplr(np.flipud(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)))
 
-    def create_rgb_visualizer(self, blank_frame):
-        """Visualize streaming video"""
-        np.copyto(blank_frame, self.frame)
-        return blank_frame
+    '''
+    self.lfingers_goal: SE3 리스트
+    '''
+    def lfingers_publish(self):
+        lfingers_data = self.lfingers_goal
+        fingers_msg = PoseArray()
+        for i in range(len(lfingers_data)):
+            finger_msg = Pose()
+            # lfingers_data[i] = self.lwrist_rot_diff_se3 * lfingers_data[i]
+            print(f"[lfingers {i}] {pin.SE3(lfingers_data[i])}")
+            xyzquat = pin.SE3ToXYZQUAT(lfingers_data[i])
+            finger_msg.position.x = xyzquat[0]
+            finger_msg.position.y = xyzquat[1]
+            finger_msg.position.z = xyzquat[2]
+            finger_msg.orientation.x = xyzquat[3]
+            finger_msg.orientation.y = xyzquat[4]
+            finger_msg.orientation.z = xyzquat[5]
+            finger_msg.orientation.w = xyzquat[6]
+            fingers_msg.poses.append(finger_msg)
+        self.lfingers_publisher.publish(fingers_msg)
+
+    '''
+    self.rfingers_goal: SE3 리스트
+    '''
+    def rfingers_publish(self):
+        rfingers_data = self.rfingers_goal
+
+        fingers_msg = PoseArray()
+        for i in range(len(rfingers_data)):
+            finger_msg = Pose()
+            xyzquat = pin.SE3ToXYZQUAT(rfingers_data[i])
+            finger_msg.position.x = xyzquat[0]
+            finger_msg.position.y = xyzquat[1]
+            finger_msg.position.z = xyzquat[2]
+            finger_msg.orientation.x = xyzquat[3]
+            finger_msg.orientation.y = xyzquat[4]
+            finger_msg.orientation.z = xyzquat[5]
+            finger_msg.orientation.w = xyzquat[6]
+            fingers_msg.poses.append(finger_msg)
+        self.rfingers_publisher.publish(fingers_msg)
+            
+    def avp_head_callback(self, msg: Pose):
+        pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.head_goal = pin.XYZQUATToSE3(pos)
+        self.avp_head_ctrlFlag = True
+
+    def avp_lwrist_callback(self, msg: Pose):
+        pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.l_goal = pin.XYZQUATToSE3(pos)
+        self.avp_lwrist_ctrlFlag = True
+
+    def avp_rwrist_callback(self, msg: Pose):
+        pos = np.array([msg.position.x, msg.position.y, msg.position.z, msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w])
+        self.r_goal = pin.XYZQUATToSE3(pos)
+        self.avp_rwrist_ctrlFlag = True
+
+    def avp_lfingers_callback(self, msg: PoseArray):
+        self.lfingers_goal = [
+            pin.XYZQUATToSE3(np.array([
+                p.position.x, p.position.y, p.position.z,
+                p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w
+            ]))
+            for p in msg.poses
+        ]
+        self.avp_lfingers_ctrlFlag = True
+
+    def avp_rfingers_callback(self, msg: PoseArray):
+        self.rfingers_goal = [
+            pin.XYZQUATToSE3(np.array([
+                p.position.x, p.position.y, p.position.z,
+                p.orientation.x, p.orientation.y, p.orientation.z, p.orientation.w
+            ]))
+            for p in msg.poses
+        ]
+        self.avp_rfingers_ctrlFlag = True
 
 def main():
     rclpy.init()
     node = AVPNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.get_logger().info('Keyboard Interrupt (SIGINT)')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
