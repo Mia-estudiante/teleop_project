@@ -56,9 +56,12 @@ class MujocoSimulationIgrisCTestNode(Node):
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
         )
-
         self.publisher = self.create_publisher(JointState, '/mujoco/joint_states', 10)
-        self.camera_publisher = self.create_publisher(Image, '/mujoco/camera', 10)
+        self.camera_publishers = {
+            'front_view': self.create_publisher(Image, '/mujoco/camera/front_view', 10),
+            'side_view': self.create_publisher(Image, '/mujoco/camera/side_view', 10),
+            'top_view': self.create_publisher(Image, '/mujoco/camera/top_view', 10),
+        }
         self.subscriber = self.create_subscription(
             Float64MultiArray, '/mujoco/controller', self.joint_state_callback, ctrl_qos
         )
@@ -96,10 +99,10 @@ class MujocoSimulationIgrisCTestNode(Node):
         joint_msg.velocity = left_qvel + right_qvel
         self.publisher.publish(joint_msg)
 
-    def camera_publish(self, camera_name='eef_camera'):
+    def camera_publish(self, camera_name):
         self.renderer.update_scene(self.data, camera=camera_name)
         pixels = self.renderer.render()
-        self.camera_publisher.publish(bridge.cv2_to_imgmsg(pixels))
+        self.camera_publishers[camera_name].publish(bridge.cv2_to_imgmsg(pixels))
 
     def joint_state_callback(self, msg: Float64MultiArray):
         n = min(len(msg.data), len(self.target_ctrl))
@@ -118,6 +121,9 @@ class MujocoSimulationIgrisCTestNode(Node):
 
     def timer_callback(self):
         self.joint_state_publish(self.data.qpos, self.data.qvel)
+        self.camera_publish('front_view')
+        self.camera_publish('side_view')
+        self.camera_publish('top_view')
 
         if self.init:
             self.get_logger().info(f"Initial qpos: {self.data.qpos[:21]}")

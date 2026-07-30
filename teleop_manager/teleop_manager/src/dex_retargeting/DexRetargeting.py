@@ -91,12 +91,14 @@ class DexRetargeting:
 
         self.left_retargeting_joint_names = self.left_retargeting.joint_names
         self.right_retargeting_joint_names = self.right_retargeting.joint_names
-        
+        print("self.left_retargeting_joint_names", self.left_retargeting_joint_names)
+        print("self.right_retargeting_joint_names", self.right_retargeting_joint_names)
+
         # [4, 6, 2, 0, 9, 8]
         self.left_retargeting_index = [self.left_retargeting_joint_names.index(target_joint_name) for target_joint_name in self.left_retargeting.optimizer.target_joint_names if target_joint_name in self.left_retargeting_joint_names] 
         self.right_retargeting_index = [self.right_retargeting_joint_names.index(target_joint_name) for target_joint_name in self.right_retargeting.optimizer.target_joint_names if target_joint_name in self.right_retargeting_joint_names]
-        # print("self.left_retargeting_index", self.left_retargeting_index)
-        # print("self.right_retargeting_index", self.right_retargeting_index)
+        print("self.left_retargeting_index", self.left_retargeting_index)
+        print("self.right_retargeting_index", self.right_retargeting_index)
         '''
         optimizer? 에 정의되어 joint 들로, 총 12개가 뽑힌다
         여기서 우리는 yaml 파일에 정의한 target_joint_names 을 가지고 qdes 를 추출하며,

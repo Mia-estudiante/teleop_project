@@ -10,7 +10,9 @@ class CameraViewer(Node):
         super().__init__('camera_viewer_node')
         self.subscription = self.create_subscription(
             Image,
-            '/mujoco/camera',
+            # '/mujoco/camera/front_view',
+            '/mujoco/camera/side_view',
+            # '/mujoco/camera/top_view',
             self.listener_callback,
             10)
         self.bridge = CvBridge()

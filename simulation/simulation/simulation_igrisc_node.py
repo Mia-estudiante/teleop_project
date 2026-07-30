@@ -1,5 +1,6 @@
 import os
 from pyexpat import model
+import re
 import sys, argparse
 
 import rclpy
@@ -26,16 +27,48 @@ class MujocoSimulationIgrisCNode(Node):
         self.get_logger().info('Mujoco Simulation IgrisC Node has been started.')
         self.get_logger().info(f'XML file: {xml_file_name}')
         
-        # XML file
         descriptions_path = get_package_share_directory('igris_c_description')
+        '''
+        # XML file
         igrisc_xml_path = os.path.join(descriptions_path, xml_file_name)
 
         # Load MuJoCo model and data
-        # igrisc_urdf_path = os.path.join(descriptions_path, 'urdf/igris_c_v2_hand.urdf')
-        # self.model = mujoco.MjModel.from_xml_path(igrisc_urdf_path)
-        self.model = mujoco.MjModel.from_xml_path(igrisc_xml_path)
+        self.model = mujoco.MjModel.from_xml_path(igrisc_urdf_path)
+        '''
+        igrisc_urdf_path = os.path.join(descriptions_path, 'urdf/igris_c_v2_hand.urdf')
+
+        pkg_path = get_package_share_directory('igris_c_description') + '/'
+
+        print(f"pkg path: {pkg_path}")
+        # URDF 읽어서 package:// 치환
+        with open(igrisc_urdf_path, 'r') as f:
+            urdf_str = f.read()
+        urdf_str = urdf_str.replace('package://igris_c_description/', pkg_path)
+
+        # 2. visual mesh 보존
+        urdf_str = urdf_str.replace(
+            '<robot name="IGRIS_C">',
+            '<robot name="IGRIS_C">\n'
+            '  <mujoco>\n'
+            '    <compiler discardvisual="false"/>\n'
+            '  </mujoco>'
+        )
+
+        # 3. 색상 밝게 (모든 rgba 값 일괄 치환)
+        urdf_str = re.sub(
+            r'rgba="0\.0706 0\.0706 0\.0706 0\.7"',
+            'rgba="0.75 0.75 0.78 1.0"',
+            urdf_str
+        )
+
+        self.model = mujoco.MjModel.from_xml_string(urdf_str)
+
+        non_mesh = self.model.geom_type != mujoco.mjtGeom.mjGEOM_MESH
+        self.model.geom_rgba[non_mesh, 3] = 0.0  # 알파 = 0
+
+
         if self.model is None:
-            self.get_logger().error(f'Failed to load the model from {igrisc_xml_path}')
+            self.get_logger().error(f'Failed to load the model from {igrisc_urdf_path}')
             return
         self.data = mujoco.MjData(self.model)
         self.renderer = mujoco.Renderer(self.model, height=480, width=640)

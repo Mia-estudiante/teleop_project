@@ -25,6 +25,7 @@ setup(
             'simulation_upper_node = simulation.simulation_upper_node:main',
             'simulation_igrisc_node = simulation.simulation_igrisc_node:main',
             'simulation_igrisc_test_node = simulation.simulation_igrisc_test_node:main',
+            'simulation_igrisc_urdf_node = simulation.simulation_igrisc_urdf_node:main',
             'simulation_igrisc_cube_node = simulation.simulation_igrisc_cube_node:main',
             'simulation_igrisc_hand_node = simulation.simulation_igrisc_hand_node:main',
             'simulation_test = simulation.simulation_test:main',

@@ -11,65 +11,19 @@ find_package(urdf REQUIRED)
 find_package(xacro REQUIRED)
 
 install(
-  FILES igris_c_v2_.xml
+  FILES igris_c_v2.xml igris_c_v2_.xml igris_c_v2_hand.xml igris_c_v2_cube.xml igris_c_v2_pos.xml igris_c_v2_converted.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
 install(
-  FILES scene_.xml
+  FILES scene.xml scene_.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(
-  FILES igris_c_v2.xml
+install(DIRECTORY meshes urdf usd hand launch
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(
-  FILES igris_c_v2_pos.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES igris_c_v2_ori.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES igris_c_v2_cube.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(
-  FILES igris_c_v2_hand.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-# install(
-#   FILES igris_c_v2_hand_mimic.urdf
-#   DESTINATION share/${PROJECT_NAME}
-# )
-
-install(
-  FILES scene.xml
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY meshes
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY urdf
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY hand
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
